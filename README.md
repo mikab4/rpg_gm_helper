@@ -55,6 +55,22 @@ These are intentionally out of scope for v1:
 4. Build extraction, review, and search workflows.
 5. Add optional Kanka export.
 
+## Local Setup
+
+Backend:
+- install `uv` if it is not already available
+- use standard CPython 3.14
+- run `uv sync --group dev` inside `backend/`
+- copy `backend/.env.example` to `backend/.env`
+- run the API with `uv run uvicorn app.main:app --reload` from `backend/`
+- run `uv run ruff format` and `uv run ruff check` for Python changes
+- run tests with `uv run pytest`
+
+Frontend:
+- run `npm install` inside `frontend/`
+- copy `frontend/.env.example` to `frontend/.env`
+- run the Vite dev server from `frontend/`
+
 ## Demo Materials
 
 - [Demo script](docs/demo-script.md)
