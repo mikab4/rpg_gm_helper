@@ -83,6 +83,19 @@ At minimum, cover:
 
 Use sample notes under `docs/sample-notes/` for repeatable tests and demos.
 
+## Python Workflow Rules
+
+- Use `uv` as the Python package and environment manager for this repository.
+- Use standard GIL-enabled CPython 3.14 for this project.
+- Do not use the free-threaded Python build unless explicitly requested for a focused experiment.
+- Do not introduce Poetry configuration unless explicitly requested.
+- Prefer `uv sync` to create or update the project environment.
+- Prefer `uv run <command>` for project commands such as tests, linters, Alembic, and Uvicorn.
+- For any change to Python code, run `ruff check` before claiming the work is complete.
+- If Python files were reformatted or newly created, also run `ruff format`.
+- Treat `ruff` findings as blockers unless there is a documented reason not to.
+- Prefer code that passes `ruff` cleanly without adding suppressions unless a suppression is justified.
+
 ## Documentation Expectations
 
 When changing architecture, scope, or major workflows:
