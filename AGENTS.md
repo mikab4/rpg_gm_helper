@@ -44,16 +44,6 @@ In scope:
 - PostgreSQL full-text search
 - optional Kanka export
 
-Out of scope for v1 unless explicitly requested:
-- multi-user auth
-- permissions
-- semantic or vector search
-- model training pipelines
-- Redis or queue infrastructure
-- a second database
-- bidirectional Kanka sync
-- microservices
-
 ## Data Modeling Guidance
 
 - Use one generic `Entity` model in v1 rather than separate tables for each RPG concept.
@@ -70,7 +60,7 @@ Out of scope for v1 unless explicitly requested:
 - Start with pasted text support before adding more complex upload handling if time is tight.
 - Prefer boring, debuggable solutions when tradeoffs are unclear.
 
-## Testing Expectations
+## Verification Expectations
 
 At minimum, cover:
 - CRUD flows for core records
@@ -83,25 +73,17 @@ At minimum, cover:
 
 Use sample notes under `docs/sample-notes/` for repeatable tests and demos.
 
-## Python Workflow Rules
+## Tooling Notes
 
-- Use `uv` as the Python package and environment manager for this repository.
-- Use standard GIL-enabled CPython 3.14 for this project.
-- Do not use the free-threaded Python build unless explicitly requested for a focused experiment.
-- Do not introduce Poetry configuration unless explicitly requested.
-- Prefer `uv sync` to create or update the project environment.
-- Prefer `uv run <command>` for project commands such as tests, linters, Alembic, and Uvicorn.
-- For any change to Python code, run `ruff check` before claiming the work is complete.
-- If Python files were reformatted or newly created, also run `ruff format`.
-- Treat `ruff` findings as blockers unless there is a documented reason not to.
-- Prefer code that passes `ruff` cleanly without adding suppressions unless a suppression is justified.
+- Backend Python lives under `backend/` and uses `uv` with CPython 3.14.
+- Prefer fast, file-scoped verification when possible before running full suites.
+- Use deterministic tooling and hooks for linting and formatting enforcement.
 
 ## Documentation Expectations
 
 When changing architecture, scope, or major workflows:
 - update `README.md` if the user-facing setup or project description changes
 - update the relevant file under `docs/plans/` if the intended design changes
-- add or update demo/sample notes when they help verify new behavior
 
 ## Working Style
 
