@@ -5,6 +5,40 @@ import { describe, expect, it, vi } from "vitest";
 import { routes } from "../../app/routes";
 
 describe("OverviewPage", () => {
+  it("shows a checking state while the health request is in flight", async () => {
+    type FetchResponse = {
+      ok: boolean;
+      json: () => Promise<{ status: string }>;
+    };
+
+    let resolveFetch!: (value: FetchResponse) => void;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }),
+      ),
+    );
+
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(screen.getByText("Checking")).toBeInTheDocument();
+
+    resolveFetch({
+      ok: true,
+      json: () => Promise.resolve({ status: "ok" }),
+    });
+
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+  });
+
   it("shows the connected backend status inside the app shell", async () => {
     vi.stubGlobal(
       "fetch",

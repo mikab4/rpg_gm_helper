@@ -4,9 +4,13 @@ import { getHealth } from "../api/health";
 import { apiBaseUrl } from "../config";
 import type { HealthResponse } from "../types/health";
 
+type HealthRequestState =
+  | { status: "loading" }
+  | { status: "success"; health: HealthResponse }
+  | { status: "error"; message: string };
+
 export function OverviewPage() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [requestState, setRequestState] = useState<HealthRequestState>({ status: "loading" });
 
   useEffect(() => {
     let isActive = true;
@@ -16,12 +20,14 @@ export function OverviewPage() {
         const nextHealth = await getHealth();
 
         if (isActive) {
-          setHealth(nextHealth);
-          setErrorMessage(null);
+          setRequestState({ status: "success", health: nextHealth });
         }
       } catch (error) {
         if (isActive) {
-          setErrorMessage(error instanceof Error ? error.message : "Unknown connection error.");
+          setRequestState({
+            status: "error",
+            message: error instanceof Error ? error.message : "Unknown connection error.",
+          });
         }
       }
     }
@@ -46,19 +52,27 @@ export function OverviewPage() {
       <section className="status-card">
         <div className="status-card-header">
           <h3>Connection</h3>
-          {health ? <span className="status-pill status-ok">Connected</span> : null}
-          {errorMessage ? <span className="status-pill status-error">Unreachable</span> : null}
-          {!health && !errorMessage ? <span className="status-pill">Checking</span> : null}
+          {requestState.status === "success" ? (
+            <span className="status-pill status-ok">Connected</span>
+          ) : null}
+          {requestState.status === "error" ? (
+            <span className="status-pill status-error">Unreachable</span>
+          ) : null}
+          {requestState.status === "loading" ? <span className="status-pill">Checking</span> : null}
         </div>
         <p className="status-line">API target: {apiBaseUrl}</p>
-        {health ? <p className="status-line">Backend status: {health.status}</p> : null}
-        {errorMessage ? (
+        {requestState.status === "success" ? (
+          <p className="status-line">Backend status: {requestState.health.status}</p>
+        ) : null}
+        {requestState.status === "error" ? (
           <p className="status-line">
             Start the backend with `uv run uvicorn app.main:app --reload` and confirm the API base
             URL matches `frontend/.env`.
           </p>
         ) : null}
-        {errorMessage ? <p className="status-error-copy">{errorMessage}</p> : null}
+        {requestState.status === "error" ? (
+          <p className="status-error-copy">{requestState.message}</p>
+        ) : null}
       </section>
     </section>
   );
