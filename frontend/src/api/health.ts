@@ -1,6 +1,10 @@
 import { apiRequest } from "./client";
 import type { HealthResponse } from "../types/health";
 
+type GetHealthOptions = {
+  signal?: AbortSignal;
+};
+
 function parseHealthResponse(payload: unknown): HealthResponse {
   if (
     typeof payload !== "object" ||
@@ -16,8 +20,8 @@ function parseHealthResponse(payload: unknown): HealthResponse {
   };
 }
 
-export async function getHealth(): Promise<HealthResponse> {
-  const payload = await apiRequest("/health");
+export async function getHealth(options: GetHealthOptions = {}): Promise<HealthResponse> {
+  const payload = await apiRequest("/health", { signal: options.signal });
 
   return parseHealthResponse(payload);
 }

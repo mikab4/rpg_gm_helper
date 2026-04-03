@@ -13,29 +13,28 @@ export function OverviewPage() {
   const [requestState, setRequestState] = useState<HealthRequestState>({ status: "loading" });
 
   useEffect(() => {
-    let isActive = true;
+    const abortController = new AbortController();
 
     async function loadHealth() {
       try {
-        const nextHealth = await getHealth();
-
-        if (isActive) {
-          setRequestState({ status: "success", health: nextHealth });
-        }
+        const nextHealth = await getHealth({ signal: abortController.signal });
+        setRequestState({ status: "success", health: nextHealth });
       } catch (error) {
-        if (isActive) {
-          setRequestState({
-            status: "error",
-            message: error instanceof Error ? error.message : "Unknown connection error.",
-          });
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
         }
+
+        setRequestState({
+          status: "error",
+          message: error instanceof Error ? error.message : "Unknown connection error.",
+        });
       }
     }
 
     void loadHealth();
 
     return () => {
-      isActive = false;
+      abortController.abort();
     };
   }, []);
 

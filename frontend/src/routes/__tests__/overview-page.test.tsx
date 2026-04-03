@@ -78,4 +78,29 @@ describe("OverviewPage", () => {
     expect(await screen.findByText("Unreachable")).toBeInTheDocument();
     expect(screen.getByText("Invalid health response payload.")).toBeInTheDocument();
   });
+
+  it("aborts the health request on unmount without rendering an error state", async () => {
+    const fetchSpy = vi.fn().mockImplementation(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        }),
+    );
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/"],
+    });
+
+    const { unmount } = render(<RouterProvider router={router} />);
+
+    unmount();
+
+    await Promise.resolve();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
 });

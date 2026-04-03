@@ -1,10 +1,15 @@
 import { apiBaseUrl } from "../config";
 
-export async function apiRequest(path: string): Promise<unknown> {
+type ApiRequestOptions = {
+  signal?: AbortSignal;
+};
+
+export async function apiRequest(path: string, options: ApiRequestOptions = {}): Promise<unknown> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: {
       Accept: "application/json",
     },
+    signal: options.signal,
   });
 
   if (!response.ok) {
