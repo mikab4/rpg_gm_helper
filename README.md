@@ -71,6 +71,21 @@ Frontend:
 - copy `frontend/.env.example` to `frontend/.env`
 - run the Vite dev server from `frontend/`
 
+## Configuration Contract
+
+Keep frontend and backend config separate, but align them intentionally:
+
+- backend owns `BACKEND_CORS_ALLOWED_ORIGINS`
+- frontend owns `VITE_API_BASE_URL`
+
+For local development:
+- `VITE_API_BASE_URL` should point to the backend API base, for example `http://localhost:8000/api`
+- `BACKEND_CORS_ALLOWED_ORIGINS` should list the frontend origin or origins, for example `http://localhost:5173,http://127.0.0.1:5173`
+
+These values are related but not interchangeable:
+- the API base URL includes the backend host, port, and `/api` prefix
+- the CORS origins list should contain only browser origins allowed to read backend responses
+
 ## Demo Materials
 
 - [Demo script](docs/demo-script.md)
