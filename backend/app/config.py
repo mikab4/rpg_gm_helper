@@ -1,8 +1,11 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+DEFAULT_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -12,7 +15,7 @@ class Settings(BaseSettings):
     database_url: str
     backend_cors_allowed_origins: Annotated[list[str], NoDecode] = []
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file_encoding="utf-8")
 
     @field_validator("backend_cors_allowed_origins", mode="before")
     @classmethod
@@ -24,4 +27,8 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return load_settings(env_file=DEFAULT_ENV_FILE if DEFAULT_ENV_FILE.is_file() else None)
+
+
+def load_settings(*, env_file: Path | None = None) -> Settings:
+    return Settings(_env_file=env_file)
