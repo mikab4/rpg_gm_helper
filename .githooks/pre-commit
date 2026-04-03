@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACMR | grep '^frontend/' || true)
+
+if [ "${#staged_files[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+if [ ! -d frontend/node_modules ]; then
+  echo "Frontend dependencies are not installed. Run 'cd frontend && npm install' first."
+  exit 1
+fi
+
+prettier_files=()
+eslint_files=()
+
+for file in "${staged_files[@]}"; do
+  case "$file" in
+    *.ts|*.tsx|*.js|*.jsx|*.json|*.css|*.md|*.html)
+      prettier_files+=("${file#frontend/}")
+      ;;
+  esac
+
+  case "$file" in
+    *.ts|*.tsx)
+      eslint_files+=("${file#frontend/}")
+      ;;
+  esac
+done
+
+if [ "${#prettier_files[@]}" -gt 0 ]; then
+  (
+    cd frontend
+    npx prettier --write "${prettier_files[@]}"
+  )
+  git add -- "${staged_files[@]}"
+fi
+
+if [ "${#eslint_files[@]}" -gt 0 ]; then
+  (
+    cd frontend
+    npx eslint --fix "${eslint_files[@]}"
+  )
+  git add -- "${staged_files[@]}"
+fi

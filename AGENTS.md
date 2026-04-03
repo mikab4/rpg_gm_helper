@@ -21,12 +21,23 @@ Before making product or architecture changes, read:
 
 If a proposed change conflicts with those documents, call it out explicitly instead of silently diverging.
 
+## Repository Shape And Commands
+
+- The backend lives under `backend/` and uses `uv` with CPython 3.14.
+- The frontend lives under `frontend/` and uses React, TypeScript, Vite, ESLint, Prettier, and `npm`.
+- Prefer `uv sync` to create or update the backend environment.
+- Prefer `uv run <command>` for backend commands such as `pytest`, `ruff check`, `ruff format`, Alembic, and Uvicorn.
+- Prefer `npm install` in `frontend/` for frontend dependencies.
+- Prefer `npm run lint`, `npm run format:check`, and `npm run build` in `frontend/` as the baseline frontend verification.
+- Prefer fast, file-scoped verification before full suites when the smaller check gives enough confidence.
+
 ## Architecture Rules
 
 - Prefer a modular monolith over microservices.
 - Keep the backend in Python with FastAPI.
 - Keep PostgreSQL as the primary and only datastore in v1.
 - Keep the frontend in React with TypeScript.
+- Keep the frontend as a separate app in the same repository, not a server-rendered full-stack framework.
 - Treat Kanka as an optional export adapter, not the source of truth.
 - Keep extraction and search behind internal service boundaries so future semantic search or model-backed extraction can be added cleanly.
 - Preserve provenance for extracted entities and relationships.
@@ -60,6 +71,14 @@ In scope:
 - Start with pasted text support before adding more complex upload handling if time is tight.
 - Prefer boring, debuggable solutions when tradeoffs are unclear.
 
+## Frontend Guidance
+
+- Keep the v1 UI admin-style and task-oriented; do not spend the milestone on a heavy design system or marketing-style polish.
+- Start with routing, a shared layout, and typed API request and response shapes that match backend contracts.
+- Prefer simple React state and straightforward form handling until real complexity justifies additional client-side abstractions.
+- Do not add frontend infrastructure such as Redux, React Query, Zustand, or SSR frameworks unless a concrete requirement appears.
+- Optimize for a working CRUD, extraction review, and search flow over visual ambition.
+
 ## Verification Expectations
 
 At minimum, cover:
@@ -73,11 +92,11 @@ At minimum, cover:
 
 Use sample notes under `docs/sample-notes/` for repeatable tests and demos.
 
-## Tooling Notes
-
-- Backend Python lives under `backend/` and uses `uv` with CPython 3.14.
-- Prefer fast, file-scoped verification when possible before running full suites.
-- Use deterministic tooling and hooks for linting and formatting enforcement.
+- For Python changes, run `uv run ruff check` before claiming the work is complete.
+- If Python files were reformatted or newly created, also run `uv run ruff format`.
+- Treat `ruff` findings as blockers unless there is a documented reason not to.
+- When backend behavior changes, run the relevant `uv run pytest` coverage.
+- When frontend code changes, run `npm run lint`, `npm run format:check`, and `npm run build` in `frontend/`.
 
 ## Documentation Expectations
 
