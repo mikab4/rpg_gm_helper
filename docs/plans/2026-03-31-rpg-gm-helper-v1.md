@@ -4,7 +4,7 @@
 
 **Goal:** Build a single-user, local-first RPG GM helper that stores campaign data, ingests notes, extracts candidate entities for review, supports keyword search, and optionally exports approved entities to Kanka.
 
-**Architecture:** Use a modular monolith with a Python FastAPI backend, PostgreSQL as the source of truth, and a separate TypeScript React frontend in the same repository. Keep extraction and external sync behind clear interfaces so semantic search, model-assisted extraction, and future auth can be added without rewriting core workflows.
+**Architecture:** Use a modular monolith with a Python FastAPI backend, PostgreSQL as the source of truth, and a separate TypeScript React frontend in the same repository. Keep the frontend thin and isolated behind a plain typed API boundary so business rules stay in FastAPI services and the UI remains cheap to replace if early framework choices change. Keep extraction and external sync behind clear interfaces so semantic search, model-assisted extraction, and future auth can be added without rewriting core workflows.
 
 **Tech Stack:** FastAPI, PostgreSQL, SQLAlchemy or SQLModel, Alembic, pytest, React, TypeScript, Vite
 
@@ -26,6 +26,7 @@ Deliver a demoable 2-week milestone with these user-visible capabilities:
 - The app is single-user and local-first in v1.
 - The backend remains in Python so development stays fast.
 - The frontend is TypeScript React so the project includes one deliberate new learning area.
+- The frontend stays a separate app with routing, forms, tables, API calls, and presentation only; domain rules remain in backend services.
 - PostgreSQL is the only datastore in v1.
 - Search uses PostgreSQL full-text search only.
 - Extraction is rules-first, with an interface that can later support an LLM-backed implementation.
@@ -50,6 +51,7 @@ API rules:
 - Extracted entities and relationships must preserve provenance.
 - Extraction candidates must be editable before approval.
 - External mappings such as Kanka IDs must be stored separately from internal IDs.
+- The frontend should consume backend contracts through a plain typed API client rather than duplicating workflow or persistence rules in React components.
 
 ## Data Model
 
@@ -212,8 +214,8 @@ Schema defaults:
 
 **Steps:**
 1. Scaffold the Vite React TypeScript app.
-2. Add a typed API client layer matching backend request and response contracts.
-3. Add routing and shared layout for the admin-style UI.
+2. Add a plain typed API client layer matching backend request and response contracts.
+3. Add routing and shared layout for the admin-style UI while keeping domain behavior out of React-specific abstractions.
 4. Add a simple environment-based API base URL config.
 
 ### Task 11: Frontend CRUD screens

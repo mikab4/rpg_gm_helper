@@ -66,6 +66,23 @@ Why we did not choose full-stack TypeScript:
 - higher setup and debugging risk
 - likely to reduce the amount of product functionality completed
 
+## Why The Frontend Stays Thin And Isolated
+
+Choosing React for v1 does not mean the product should absorb React-shaped architecture.
+
+Reasoning:
+- The backend owns the risky logic in this milestone: CRUD validation, extraction review, provenance, and search behavior.
+- If workflow rules drift into hooks, client caches, or frontend-only abstractions, the product becomes harder to test and harder to change.
+- The UI needs to move quickly, but it does not need framework-specific complexity to do that.
+
+What we took instead:
+- a separate frontend app in the same repository
+- a plain typed API client at the frontend-backend boundary
+- routing, forms, tables, and presentation in the frontend
+- business rules, persistence rules, and workflow logic in FastAPI services
+
+This preserves an important escape hatch: if React turns out to be the wrong fit for the admin-style UI, the CSS, UX flows, and API contracts should remain reusable enough that replacing the frontend is a bounded cost rather than a rewrite of product behavior.
+
 ## Why PostgreSQL Is The Only Database In V1
 
 The project may later explore SQL, NoSQL, semantic search, and more advanced storage patterns. That does not justify starting with multiple datastores.

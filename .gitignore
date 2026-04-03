@@ -25,9 +25,15 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+*.tsbuildinfo
 
 # Frontend
 node_modules/
+
+# Local environment files
+.env
+backend/.env
+frontend/.env
 
 # Editors and OS files
 .DS_Store
