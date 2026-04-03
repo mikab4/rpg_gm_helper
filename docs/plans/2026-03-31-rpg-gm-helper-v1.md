@@ -75,6 +75,8 @@ Schema defaults:
 
 ## Implementation Tasks
 
+Sequence the work as vertical slices after the shared foundation. The point is to make each major feature visible and testable end-to-end before moving to the next slice, instead of batching all backend work first and all frontend work later.
+
 ### Task 1: Repository scaffolding and project layout
 
 **Files:**
@@ -119,7 +121,21 @@ Schema defaults:
 3. Add PostgreSQL full-text search columns or indexes for entities and notes/documents.
 4. Add tests that persist and retrieve the core records.
 
-### Task 4: Campaign and entity CRUD
+### Task 4: Frontend scaffolding and API client
+
+**Files:**
+- Create: `frontend/src/main.tsx`
+- Create: `frontend/src/App.tsx`
+- Create: `frontend/src/api/`
+- Create: `frontend/src/types/`
+
+**Steps:**
+1. Scaffold the Vite React TypeScript app.
+2. Add a plain typed API client layer matching backend request and response contracts.
+3. Add routing and shared layout for the admin-style UI while keeping domain behavior out of React-specific abstractions.
+4. Add a simple environment-based API base URL config.
+
+### Task 5: Campaign and entity CRUD backend
 
 **Files:**
 - Create: `backend/app/api/campaigns.py`
@@ -134,7 +150,20 @@ Schema defaults:
 3. Validate that entities cannot be created outside a known campaign.
 4. Add API tests for successful create, read, update, list, and delete flows.
 
-### Task 5: Relationships, notes, and documents
+### Task 6: Campaign and entity CRUD frontend
+
+**Files:**
+- Create: `frontend/src/pages/CampaignsPage.tsx`
+- Create: `frontend/src/pages/EntitiesPage.tsx`
+- Create: `frontend/src/pages/EntityDetailPage.tsx`
+
+**Steps:**
+1. Build list and detail views for campaigns.
+2. Build entity list and entity edit flows.
+3. Connect the screens to the typed API client for the new backend CRUD endpoints.
+4. Handle loading, success, and API error states clearly so the full campaign and entity flow is demoable.
+
+### Task 7: Relationships, notes, and documents backend
 
 **Files:**
 - Create: `backend/app/api/relationships.py`
@@ -149,7 +178,19 @@ Schema defaults:
 3. Implement document creation via pasted text first, with file upload optional if time allows.
 4. Add tests covering cross-campaign validation and raw text storage.
 
-### Task 6: Extraction pipeline contract and rules-based implementation
+### Task 8: Notes and documents frontend
+
+**Files:**
+- Create: `frontend/src/pages/NotesPage.tsx`
+- Create: `frontend/src/pages/DocumentsPage.tsx`
+
+**Steps:**
+1. Build session note list and edit flows.
+2. Add a document paste or upload view that creates source documents.
+3. Connect note and document screens to the typed API client without moving validation rules into React.
+4. Verify the note and document flow is usable end-to-end before starting extraction work.
+
+### Task 9: Extraction pipeline contract and rules-based implementation
 
 **Files:**
 - Create: `backend/app/services/extraction/base.py`
@@ -165,7 +206,7 @@ Schema defaults:
 4. Expose API endpoints to start an extraction job and fetch its candidates.
 5. Add tests against fixed sample notes so the behavior is stable and demoable.
 
-### Task 7: Candidate review and approval workflow
+### Task 10: Candidate review and approval workflow backend
 
 **Files:**
 - Create: `backend/app/api/extraction_review.py`
@@ -178,7 +219,18 @@ Schema defaults:
 3. Preserve provenance from the source document and extraction job.
 4. Add tests for approve, reject, edit, and duplicate-name review paths.
 
-### Task 8: Search
+### Task 11: Extraction review frontend
+
+**Files:**
+- Create: `frontend/src/pages/ExtractionReviewPage.tsx`
+
+**Steps:**
+1. Add a view to trigger extraction jobs from stored source documents.
+2. Show candidate entities and relationships with their source context.
+3. Add approve, reject, and edit actions wired to the review endpoints.
+4. Verify the extraction-to-review flow works visually from raw text through approved records.
+
+### Task 12: Search backend
 
 **Files:**
 - Create: `backend/app/api/search.py`
@@ -191,7 +243,18 @@ Schema defaults:
 3. Add campaign filtering to search queries.
 4. Add tests for keyword hits and empty-result behavior.
 
-### Task 9: Kanka export adapter
+### Task 13: Search frontend
+
+**Files:**
+- Create: `frontend/src/pages/SearchPage.tsx`
+
+**Steps:**
+1. Add a search page that calls the backend search API.
+2. Display grouped results for entities and notes.
+3. Support campaign-scoped filtering in the UI using backend-provided contracts.
+4. Verify search works end-to-end against the seeded demo data and sample notes.
+
+### Task 14: Kanka export adapter
 
 **Files:**
 - Create: `backend/app/integrations/kanka.py`
@@ -204,48 +267,7 @@ Schema defaults:
 3. Implement export endpoints with a stub or real HTTP client depending on available credentials.
 4. Add tests for payload generation and export job recording.
 
-### Task 10: Frontend scaffolding and API client
-
-**Files:**
-- Create: `frontend/src/main.tsx`
-- Create: `frontend/src/App.tsx`
-- Create: `frontend/src/api/`
-- Create: `frontend/src/types/`
-
-**Steps:**
-1. Scaffold the Vite React TypeScript app.
-2. Add a plain typed API client layer matching backend request and response contracts.
-3. Add routing and shared layout for the admin-style UI while keeping domain behavior out of React-specific abstractions.
-4. Add a simple environment-based API base URL config.
-
-### Task 11: Frontend CRUD screens
-
-**Files:**
-- Create: `frontend/src/pages/CampaignsPage.tsx`
-- Create: `frontend/src/pages/EntitiesPage.tsx`
-- Create: `frontend/src/pages/EntityDetailPage.tsx`
-- Create: `frontend/src/pages/NotesPage.tsx`
-
-**Steps:**
-1. Build list and detail views for campaigns.
-2. Build entity list and entity edit flows.
-3. Build session note list and edit flows.
-4. Handle loading, success, and API error states clearly.
-
-### Task 12: Frontend extraction review and search screens
-
-**Files:**
-- Create: `frontend/src/pages/DocumentsPage.tsx`
-- Create: `frontend/src/pages/ExtractionReviewPage.tsx`
-- Create: `frontend/src/pages/SearchPage.tsx`
-
-**Steps:**
-1. Add a document paste/upload view that creates source documents.
-2. Add a view to trigger extraction and inspect candidate results.
-3. Add approve, reject, and edit actions for candidates.
-4. Add a search page that displays grouped results for entities and notes.
-
-### Task 13: Demo polish and documentation
+### Task 15: Demo polish and documentation
 
 **Files:**
 - Modify: `README.md`
