@@ -26,6 +26,33 @@ async def test_healthcheck_returns_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.anyio
+async def test_healthcheck_exposes_named_response_model_in_openapi(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
+    from app.main import create_app
+
+    settings = Settings(_env_file=None)
+
+    transport = httpx.ASGITransport(app=create_app(settings))
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/openapi.json")
+
+    assert response.status_code == 200
+    schema = response.json()
+    assert (
+        schema["paths"]["/api/health"]["get"]["responses"]["200"]["content"]["application/json"][
+            "schema"
+        ]["$ref"]
+        == "#/components/schemas/HealthResponse"
+    )
+
+
+@pytest.mark.anyio
 async def test_healthcheck_allows_frontend_origin_from_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
