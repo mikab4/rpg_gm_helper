@@ -1,6 +1,6 @@
 import { apiBaseUrl } from "../config";
 
-export async function apiRequest<T>(path: string): Promise<T> {
+export async function apiRequest(path: string): Promise<unknown> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: {
       Accept: "application/json",
@@ -11,5 +11,5 @@ export async function apiRequest<T>(path: string): Promise<T> {
     throw new Error(`Request failed with status ${String(response.status)}.`);
   }
 
-  return (await response.json()) as T;
+  return response.json();
 }
