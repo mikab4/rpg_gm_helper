@@ -36,8 +36,14 @@ If a proposed change conflicts with those documents, call it out explicitly inst
 - Prefer a modular monolith over microservices.
 - Keep the backend in Python with FastAPI.
 - Keep PostgreSQL as the primary and only datastore in v1.
-- Keep the frontend in React with TypeScript.
+- Use React with TypeScript as the current frontend default, but keep the frontend architecture cheap to replace if an early switch becomes justified.
 - Keep the frontend as a separate app in the same repository, not a server-rendered full-stack framework.
+- Keep business logic, validation, extraction logic, and workflow rules in the backend rather than in React components or hooks.
+- Keep the frontend thin: routing, forms, tables, API calls, and presentation are in scope; domain logic and persistence rules belong in FastAPI services.
+- Use a plain typed API client at the frontend-backend boundary and avoid coupling domain behavior to React-only patterns.
+- Avoid heavy client-side state frameworks, custom hook abstractions, or React-specific architecture unless they solve a concrete v1 problem now.
+- Prefer styling and component structure that preserve CSS, UX flows, and API contracts if the frontend framework is changed later.
+- Reconsider the frontend framework only if React materially slows delivery of the admin-style UI, not merely because another framework looks cleaner.
 - Treat Kanka as an optional export adapter, not the source of truth.
 - Keep extraction and search behind internal service boundaries so future semantic search or model-backed extraction can be added cleanly.
 - Preserve provenance for extracted entities and relationships.
