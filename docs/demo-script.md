@@ -17,7 +17,6 @@ Show the end-to-end workflow from free-text notes to searchable structured campa
 7. Open the saved entity records and show their provenance back to the source note.
 8. Run a keyword search for one extracted character, location, or faction.
 9. Show that search returns both structured entity results and related notes.
-10. Optionally export approved entities to Kanka.
 
 ## What The Demo Should Prove
 
@@ -25,7 +24,7 @@ Show the end-to-end workflow from free-text notes to searchable structured campa
 - free text can be turned into candidate records
 - extracted data is reviewed before becoming canonical
 - saved records remain searchable
-- the product can interoperate with Kanka without depending on it as the source of truth
+- the product preserves a clean evidence-to-canonical workflow
 
 ## Recommended Demo Data
 

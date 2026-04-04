@@ -127,21 +127,19 @@ What we chose:
 
 This keeps the demo stable while preserving the future learning path.
 
-## Why Kanka Is Only An Optional Export Adapter
+## Why Kanka Is Deferred
 
-Kanka is useful as inspiration and as a potential integration point, but it should not own the core model of this app.
+Kanka may still be useful later as an inspiration source or optional integration, but it is no longer part of the current v1 milestone.
 
 Reasoning:
-- If Kanka became the primary data model, future migration to a standalone product would become expensive.
-- The point of this project is to learn product and backend design, not only to build a thin wrapper around someone else's system.
-- Kanka can still be useful as a practical interoperability target.
+- It is not central to validating the core workflow of source text, extraction, review, and canonical persistence.
+- It adds schema and interface work for a feature that may never be implemented.
+- The current milestone is stronger if it stays focused on the product's own source of truth.
 
-So the chosen boundary is:
+The chosen boundary is now:
 - this app is the source of truth
-- Kanka export is optional
-- external IDs are stored as mapping metadata, not as canonical identity
-
-That keeps the integration useful without creating lock-in.
+- Kanka is deferred from v1
+- the schema should not reserve tables for Kanka until the integration is reintroduced with a concrete use case
 
 ## Why Auth Is Deferred But Not Ignored
 
@@ -196,7 +194,7 @@ These were intentionally excluded because they add complexity without helping th
 - microservices
 - Redis or background queue infrastructure
 - separate NoSQL storage
-- bidirectional Kanka sync
+- Kanka export and sync
 - fully automatic write-back from extracted notes without review
 
 Deferring these is not avoidance. It is how the plan stays coherent and achievable.

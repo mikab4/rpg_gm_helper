@@ -2,7 +2,7 @@
 
 > **For Codex:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a single-user, local-first RPG GM helper that stores campaign data, ingests notes, extracts candidate entities for review, supports keyword search, and optionally exports approved entities to Kanka.
+**Goal:** Build a single-user, local-first RPG GM helper that stores campaign data, ingests notes, extracts candidate entities for review, and supports keyword search.
 
 **Architecture:** Use a modular monolith with a Python FastAPI backend, PostgreSQL as the source of truth, and a separate TypeScript React frontend in the same repository. Keep the frontend thin and isolated behind a plain typed API boundary so business rules stay in FastAPI services and the UI remains cheap to replace if early framework choices change. Keep extraction and external sync behind clear interfaces so semantic search, model-assisted extraction, and future auth can be added without rewriting core workflows.
 
@@ -19,7 +19,6 @@ Deliver a demoable 2-week milestone with these user-visible capabilities:
 - Run extraction to generate candidate entities and relationships
 - Review and accept or reject candidates before persistence
 - Search entities and notes with PostgreSQL full-text search
-- Optionally export approved entities to Kanka
 
 ## Core Product Decisions
 
@@ -28,9 +27,8 @@ Deliver a demoable 2-week milestone with these user-visible capabilities:
 - The frontend is TypeScript React so the project includes one deliberate new learning area.
 - The frontend stays a separate app with routing, forms, tables, API calls, and presentation only; domain rules remain in backend services.
 - PostgreSQL is the only datastore in v1.
-- Search uses PostgreSQL full-text search only.
+- Search uses PostgreSQL full-text search only, but search-specific schema and indexing work are deferred until the search task.
 - Extraction is rules-first, with an interface that can later support an LLM-backed implementation.
-- Kanka is an optional export adapter only, never the source of truth.
 - Auth, semantic search, vector search, model training, and microservices are deferred.
 
 ## Public Interfaces
@@ -43,14 +41,12 @@ Implement these API groups:
 - `/documents`
 - `/extraction-jobs`
 - `/search`
-- `/integrations/kanka/export`
 
 API rules:
 - Every resource that belongs to a campaign must include `campaign_id`.
 - Backend code must not assume one implicit global campaign.
 - Extracted entities and relationships must preserve provenance.
 - Extraction candidates must be editable before approval.
-- External mappings such as Kanka IDs must be stored separately from internal IDs.
 - The frontend should consume backend contracts through a plain typed API client rather than duplicating workflow or persistence rules in React components.
 
 ## Data Model
@@ -64,13 +60,13 @@ Define these initial records:
 - `SourceDocument`
 - `ExtractionJob`
 - `ExtractionCandidate`
-- `KankaExportJob`
 
 Schema defaults:
 - Use one generic `Entity` table in v1.
 - `Entity` has `type`, `name`, `summary`, `metadata JSONB`, provenance fields, and timestamps.
 - `Relationship` stores source entity, target entity, relationship type, optional notes, provenance, and confidence.
-- `SourceDocument` stores raw text and metadata separately from `SessionNote`.
+- `SessionNote` represents an actual play session and is distinct from raw source text.
+- `SourceDocument` stores textual source material and may optionally link back to a session note.
 - `Owner` exists as a placeholder for future auth and tenancy even though v1 is single-user.
 
 ## Implementation Tasks
@@ -116,9 +112,9 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 - Create: `backend/tests/test_models.py`
 
 **Steps:**
-1. Define models for owner, campaign, entity, relationship, session note, source document, extraction job, extraction candidate, and Kanka export job.
+1. Define models for owner, campaign, entity, relationship, session note, source document, extraction job, and extraction candidate.
 2. Add an initial Alembic migration for the full v1 schema.
-3. Add PostgreSQL full-text search columns or indexes for entities and notes/documents.
+3. Defer PostgreSQL full-text search columns and indexes until the search task.
 4. Add tests that persist and retrieve the core records.
 
 ### Task 4: Frontend scaffolding and API client
@@ -254,20 +250,7 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 3. Support campaign-scoped filtering in the UI using backend-provided contracts.
 4. Verify search works end-to-end against the seeded demo data and sample notes.
 
-### Task 14: Kanka export adapter
-
-**Files:**
-- Create: `backend/app/integrations/kanka.py`
-- Create: `backend/app/api/kanka_export.py`
-- Create: `backend/tests/test_kanka_export.py`
-
-**Steps:**
-1. Define a Kanka exporter that transforms approved internal records to outbound Kanka payloads.
-2. Store external mapping metadata separately from internal IDs.
-3. Implement export endpoints with a stub or real HTTP client depending on available credentials.
-4. Add tests for payload generation and export job recording.
-
-### Task 15: Demo polish and documentation
+### Task 14: Demo polish and documentation
 
 **Files:**
 - Modify: `README.md`
@@ -287,7 +270,6 @@ Backend automated tests:
 - extraction job creation and candidate generation
 - candidate approval and rejection flows
 - search queries over entities and notes
-- Kanka export payload generation
 - cross-campaign validation failures
 
 Frontend verification:
@@ -304,12 +286,10 @@ Manual acceptance flow:
 4. Review and accept candidate entities.
 5. Search for one extracted character or location.
 6. Inspect saved provenance data.
-7. Optionally export approved entities to Kanka.
-
 ## Assumptions
 
 - v1 is a single-user local-first app.
 - Auth is deferred but schema and APIs leave room for it later.
 - File upload can be reduced to pasted text if time becomes tight.
 - Extraction quality can be modest if the review loop is solid.
-- Kanka export is lower priority than ingestion, review, and search.
+- Search schema and indexing are intentionally deferred from Task 3 until search work starts.

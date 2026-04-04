@@ -18,7 +18,6 @@ Build a demoable first version with these capabilities:
 - extract candidate entities and relationships from notes
 - review and approve extracted candidates before persistence
 - search entities and notes with PostgreSQL full-text search
-- optionally export approved entities to Kanka
 
 ## Planned Stack
 
@@ -45,7 +44,7 @@ These are intentionally out of scope for v1:
 - microservices
 - Redis and queue infrastructure
 - NoSQL persistence
-- bidirectional Kanka sync
+- Kanka export and sync
 
 ## Next Steps
 
@@ -53,7 +52,6 @@ These are intentionally out of scope for v1:
 2. Define the initial PostgreSQL schema and migrations.
 3. Implement campaign, entity, note, and document flows.
 4. Build extraction, review, and search workflows.
-5. Add optional Kanka export.
 
 ## Local Setup
 
