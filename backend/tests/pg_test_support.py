@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.pool import NullPool
 
 from app.config import Settings, load_settings
 
@@ -22,7 +23,7 @@ def build_alembic_config() -> Config:
 
 
 def create_test_engine(settings: Settings) -> Engine:
-    return create_engine(settings.database_url, future=True)
+    return create_engine(settings.database_url, future=True, poolclass=NullPool)
 
 
 def reset_public_schema(engine: Engine) -> None:

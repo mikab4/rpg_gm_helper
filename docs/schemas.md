@@ -156,6 +156,9 @@ Meaning:
 - Symmetric behavior, allowed relationship types, and reverse labels are backend semantics, not separate schema tables in v1.
 - Canonical relationships may still keep optional confidence.
 
+Constraints:
+- `confidence` must be between `0` and `1` when present.
+
 ## Explicitly Deferred From The Initial Schema
 
 - `kanka_export_jobs`

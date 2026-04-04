@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -222,6 +223,41 @@ def test_updated_at_changes_on_orm_update(session: Session) -> None:
     session.refresh(source_document)
 
     assert source_document.updated_at > original_updated_at
+
+
+def test_relationship_confidence_must_be_between_zero_and_one(session: Session) -> None:
+    owner = Owner(email="gm@example.com")
+    campaign = Campaign(owner=owner, name="Shadows of Glass")
+    entity_a = Entity(campaign=campaign, type="npc", name="Magistrate Ilya")
+    entity_b = Entity(campaign=campaign, type="location", name="Broken Observatory")
+
+    session.add_all([owner, campaign, entity_a, entity_b])
+    session.commit()
+
+    session.add(
+        Relationship(
+            campaign=campaign,
+            source_entity=entity_a,
+            target_entity=entity_b,
+            relationship_type="knows",
+            confidence=Decimal("-0.01"),
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+    session.add(
+        Relationship(
+            campaign=campaign,
+            source_entity=entity_a,
+            target_entity=entity_b,
+            relationship_type="knows",
+            confidence=Decimal("1.01"),
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.commit()
 
 
 def test_campaign_name_must_be_unique_per_owner(session: Session) -> None:

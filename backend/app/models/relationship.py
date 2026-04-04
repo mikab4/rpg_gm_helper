@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import (
+    CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -26,6 +27,10 @@ if TYPE_CHECKING:
 class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "entity_relationships"
     __table_args__ = (
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_entity_relationships_confidence_between_0_and_1",
+        ),
         ForeignKeyConstraint(
             ["source_entity_id", "campaign_id"],
             ["entities.id", "entities.campaign_id"],
