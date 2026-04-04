@@ -79,7 +79,7 @@ is the right compromise for v1.
 
 ## Why Relationships Stay As Directed Rows
 
-Relationships are stored as directed assertions using:
+Relationships are stored in the `entity_relationships` table as directed assertions using:
 
 - `source_entity_id`
 - `target_entity_id`
@@ -89,7 +89,7 @@ This supports both one-way relationships like `lives_in` and symmetric semantics
 
 ## Why Controlled Vocabularies Stay In Backend Code
 
-For `entities.type`, `relationships.relationship_type`, and `source_documents.truth_status`, the agreed choice was:
+For `entities.type`, `entity_relationships.relationship_type`, and `source_documents.truth_status`, the agreed choice was:
 
 - store plain text in the database
 - validate allowed values in backend code

@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from app.config import Settings, get_settings
+from app.models.base import Base
 
-Base = declarative_base()
+__all__ = ["Base", "get_engine", "get_session_factory"]
 
 
 def get_engine(settings: Settings | None = None):

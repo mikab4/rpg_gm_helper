@@ -136,6 +136,8 @@ Meaning:
 
 ## Relationships
 
+Database table: `entity_relationships`
+
 - `id UUID PK`
 - `campaign_id UUID not null FK -> campaigns.id`
 - `source_entity_id UUID not null FK -> entities.id`

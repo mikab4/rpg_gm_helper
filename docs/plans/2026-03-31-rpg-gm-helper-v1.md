@@ -64,7 +64,7 @@ Define these initial records:
 Schema defaults:
 - Use one generic `Entity` table in v1.
 - `Entity` has `type`, `name`, `summary`, `metadata JSONB`, provenance fields, and timestamps.
-- `Relationship` stores source entity, target entity, relationship type, optional notes, provenance, and confidence.
+- `Relationship` maps to the `entity_relationships` table and stores source entity, target entity, relationship type, optional notes, provenance, and confidence.
 - `SessionNote` represents an actual play session and is distinct from raw source text.
 - `SourceDocument` stores textual source material and may optionally link back to a session note.
 - `Owner` exists as a placeholder for future auth and tenancy even though v1 is single-user.
