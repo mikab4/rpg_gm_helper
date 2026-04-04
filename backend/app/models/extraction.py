@@ -60,13 +60,15 @@ class ExtractionJob(UUIDPrimaryKeyMixin, Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    campaign: Mapped["Campaign"] = relationship(back_populates="extraction_jobs")
+    campaign: Mapped["Campaign"] = relationship(back_populates="extraction_jobs", lazy="select")
     source_document: Mapped["SourceDocument"] = relationship(
         back_populates="extraction_jobs",
+        lazy="select",
         overlaps="campaign,extraction_jobs",
     )
     candidates: Mapped[list["ExtractionCandidate"]] = relationship(
         back_populates="extraction_job",
+        lazy="selectin",
         overlaps="extraction_candidates",
     )
 
@@ -121,9 +123,11 @@ class ExtractionCandidate(UUIDPrimaryKeyMixin, Base):
 
     campaign: Mapped["Campaign"] = relationship(
         back_populates="extraction_candidates",
+        lazy="select",
         overlaps="candidates",
     )
     extraction_job: Mapped["ExtractionJob"] = relationship(
         back_populates="candidates",
+        lazy="select",
         overlaps="campaign,extraction_candidates",
     )

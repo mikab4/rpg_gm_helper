@@ -61,16 +61,19 @@ class Entity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default=text("'{}'::jsonb"),
     )
 
-    campaign: Mapped["Campaign"] = relationship(back_populates="entities")
+    campaign: Mapped["Campaign"] = relationship(back_populates="entities", lazy="select")
     source_document: Mapped["SourceDocument | None"] = relationship(
         back_populates="entities",
+        lazy="select",
         overlaps="campaign,entities",
     )
     outgoing_relationships: Mapped[list["Relationship"]] = relationship(
         back_populates="source_entity",
         foreign_keys="Relationship.source_entity_id",
+        lazy="selectin",
     )
     incoming_relationships: Mapped[list["Relationship"]] = relationship(
         back_populates="target_entity",
         foreign_keys="Relationship.target_entity_id",
+        lazy="selectin",
     )

@@ -63,21 +63,26 @@ class SourceDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     campaign: Mapped["Campaign"] = relationship(
         back_populates="source_documents",
+        lazy="select",
         overlaps="session_note,source_documents",
     )
     session_note: Mapped["SessionNote | None"] = relationship(
         back_populates="source_documents",
+        lazy="select",
         overlaps="campaign,source_documents",
     )
     extraction_jobs: Mapped[list["ExtractionJob"]] = relationship(
         back_populates="source_document",
+        lazy="selectin",
         overlaps="campaign,extraction_jobs",
     )
     entities: Mapped[list["Entity"]] = relationship(
         back_populates="source_document",
+        lazy="selectin",
         overlaps="campaign,entities",
     )
     relationships: Mapped[list["Relationship"]] = relationship(
         back_populates="source_document",
+        lazy="selectin",
         overlaps="campaign,relationships",
     )

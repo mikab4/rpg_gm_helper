@@ -36,8 +36,9 @@ class SessionNote(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     played_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    campaign: Mapped["Campaign"] = relationship(back_populates="session_notes")
+    campaign: Mapped["Campaign"] = relationship(back_populates="session_notes", lazy="select")
     source_documents: Mapped[list["SourceDocument"]] = relationship(
         back_populates="session_note",
+        lazy="selectin",
         overlaps="campaign,source_documents",
     )

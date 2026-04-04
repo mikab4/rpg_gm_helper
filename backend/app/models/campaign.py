@@ -29,12 +29,28 @@ class Campaign(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    owner: Mapped["Owner"] = relationship(back_populates="campaigns")
-    session_notes: Mapped[list["SessionNote"]] = relationship(back_populates="campaign")
-    source_documents: Mapped[list["SourceDocument"]] = relationship(back_populates="campaign")
-    extraction_jobs: Mapped[list["ExtractionJob"]] = relationship(back_populates="campaign")
-    extraction_candidates: Mapped[list["ExtractionCandidate"]] = relationship(
-        back_populates="campaign"
+    owner: Mapped["Owner"] = relationship(back_populates="campaigns", lazy="select")
+    session_notes: Mapped[list["SessionNote"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
     )
-    entities: Mapped[list["Entity"]] = relationship(back_populates="campaign")
-    relationships: Mapped[list["Relationship"]] = relationship(back_populates="campaign")
+    source_documents: Mapped[list["SourceDocument"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
+    )
+    extraction_jobs: Mapped[list["ExtractionJob"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
+    )
+    extraction_candidates: Mapped[list["ExtractionCandidate"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
+    )
+    entities: Mapped[list["Entity"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
+    )
+    relationships: Mapped[list["Relationship"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
+    )

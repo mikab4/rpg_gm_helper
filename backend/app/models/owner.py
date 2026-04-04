@@ -17,4 +17,7 @@ class Owner(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     email: Mapped[str | None] = mapped_column(Text, nullable=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    campaigns: Mapped[list["Campaign"]] = relationship(back_populates="owner")
+    campaigns: Mapped[list["Campaign"]] = relationship(
+        back_populates="owner",
+        lazy="selectin",
+    )
