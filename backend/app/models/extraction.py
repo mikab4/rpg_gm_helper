@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -101,7 +102,11 @@ class ExtractionCandidate(UUIDPrimaryKeyMixin, Base):
     status: Mapped[str] = mapped_column(Text, nullable=False)
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     provenance_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    provenance_data: Mapped[dict[str, object]] = mapped_column(json_document, default=dict)
+    provenance_data: Mapped[dict[str, object]] = mapped_column(
+        json_document,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,

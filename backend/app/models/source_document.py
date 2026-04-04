@@ -3,7 +3,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Text, UniqueConstraint, Uuid
+from sqlalchemy import (
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_document
@@ -46,7 +54,12 @@ class SourceDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     truth_status: Mapped[str] = mapped_column(Text, nullable=False)
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_: Mapped[dict[str, object]] = mapped_column("metadata", json_document, default=dict)
+    metadata_: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        json_document,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
 
     campaign: Mapped["Campaign"] = relationship(
         back_populates="source_documents",

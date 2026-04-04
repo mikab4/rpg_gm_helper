@@ -4,11 +4,11 @@ from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from app.db import Base
+from alembic import command
+from app.config import get_settings
 from app.models import (
     Campaign,
     Entity,
@@ -19,6 +19,12 @@ from app.models import (
     SessionNote,
     SourceDocument,
 )
+from tests.pg_test_support import (
+    build_alembic_config,
+    create_test_engine,
+    load_test_settings,
+    reset_public_schema,
+)
 
 
 def test_relationship_model_uses_entity_relationships_table() -> None:
@@ -26,14 +32,23 @@ def test_relationship_model_uses_entity_relationships_table() -> None:
 
 
 @pytest.fixture
-def session() -> Session:
-    engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+def session(monkeypatch: pytest.MonkeyPatch) -> Session:
+    settings = load_test_settings()
+    engine = create_test_engine(settings)
+    alembic_config = build_alembic_config()
 
-    with factory() as session:
-        yield session
-    engine.dispose()
+    reset_public_schema(engine)
+    monkeypatch.setenv("DATABASE_URL", settings.database_url)
+    get_settings.cache_clear()
+    command.upgrade(alembic_config, "head")
+
+    try:
+        with Session(engine) as session:
+            yield session
+    finally:
+        command.downgrade(alembic_config, "base")
+        get_settings.cache_clear()
+        engine.dispose()
 
 
 def test_can_persist_and_retrieve_core_records(session: Session) -> None:
@@ -130,6 +145,83 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
     assert stored_relationship is not None
     assert stored_relationship.source_entity_id == entity_a.id
     assert stored_relationship.target_entity_id == entity_b.id
+
+
+def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
+    owner = Owner(email="gm@example.com")
+    campaign = Campaign(owner=owner, name="Shadows of Glass")
+    source_document = SourceDocument(
+        campaign=campaign,
+        truth_status="canonical",
+        raw_text="Raw text only",
+    )
+    extraction_job = ExtractionJob(
+        campaign=campaign,
+        source_document=source_document,
+        status="pending",
+        extractor_kind="rules",
+    )
+    candidate = ExtractionCandidate(
+        campaign=campaign,
+        extraction_job=extraction_job,
+        candidate_type="entity",
+        payload={"name": "Magistrate Ilya"},
+        status="pending",
+    )
+    entity = Entity(
+        campaign=campaign,
+        type="npc",
+        name="Magistrate Ilya",
+        source_document=source_document,
+    )
+    relationship = Relationship(
+        campaign=campaign,
+        source_entity=entity,
+        target_entity=entity,
+        relationship_type="knows",
+        source_document=source_document,
+    )
+
+    session.add_all(
+        [owner, campaign, source_document, extraction_job, candidate, entity, relationship]
+    )
+    session.commit()
+
+    stored_document = session.get(SourceDocument, source_document.id)
+    stored_candidate = session.get(ExtractionCandidate, candidate.id)
+    stored_entity = session.get(Entity, entity.id)
+    stored_relationship = session.get(Relationship, relationship.id)
+
+    assert stored_document is not None
+    assert stored_document.metadata_ == {}
+    assert stored_candidate is not None
+    assert stored_candidate.provenance_data == {}
+    assert stored_entity is not None
+    assert stored_entity.metadata_ == {}
+    assert stored_entity.provenance_data == {}
+    assert stored_relationship is not None
+    assert stored_relationship.provenance_data == {}
+
+
+def test_updated_at_changes_on_orm_update(session: Session) -> None:
+    owner = Owner(email="gm@example.com")
+    campaign = Campaign(owner=owner, name="Shadows of Glass")
+    source_document = SourceDocument(
+        campaign=campaign,
+        truth_status="canonical",
+        raw_text="Original text",
+    )
+
+    session.add_all([owner, campaign, source_document])
+    session.commit()
+
+    original_updated_at = source_document.updated_at
+
+    source_document.raw_text = "Updated text"
+    session.commit()
+    session.refresh(source_document)
+
+    assert source_document.updated_at > original_updated_at
 
 
 def test_campaign_name_must_be_unique_per_owner(session: Session) -> None:

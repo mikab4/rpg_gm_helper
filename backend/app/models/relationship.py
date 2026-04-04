@@ -4,7 +4,15 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Numeric, Text, Uuid
+from sqlalchemy import (
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    Text,
+    Uuid,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_document
@@ -75,7 +83,11 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
     provenance_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    provenance_data: Mapped[dict[str, object]] = mapped_column(json_document, default=dict)
+    provenance_data: Mapped[dict[str, object]] = mapped_column(
+        json_document,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
 
     campaign: Mapped["Campaign"] = relationship(back_populates="relationships")
     source_entity: Mapped["Entity"] = relationship(

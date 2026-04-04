@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-from alembic.config import Config
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alembic import command
-from app.config import get_settings, load_settings
+from app.config import get_settings
 from app.models import (
     Campaign,
     Entity,
@@ -20,6 +17,12 @@ from app.models import (
 )
 from app.models.session_note import SessionNote
 from app.models.source_document import SourceDocument
+from tests.pg_test_support import (
+    build_alembic_config,
+    create_test_engine,
+    load_test_settings,
+    reset_public_schema,
+)
 
 EXPECTED_TABLES = {
     "alembic_version",
@@ -34,28 +37,18 @@ EXPECTED_TABLES = {
 }
 
 
-def load_test_settings() -> tuple[Path, object]:
-    env_file = Path(__file__).resolve().parent.parent / ".env.test"
-    if not env_file.is_file():
-        pytest.skip("Create backend/.env.test to run Postgres migration integration tests.")
-
-    return env_file, load_settings(env_file=env_file)
-
-
 def test_alembic_upgrade_head_creates_expected_tables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    env_file, settings = load_test_settings()
-    engine = create_engine(settings.database_url, future=True)
+    settings = load_test_settings()
+    engine = create_test_engine(settings)
 
-    with engine.begin() as connection:
-        connection.execute(text("DROP SCHEMA public CASCADE"))
-        connection.execute(text("CREATE SCHEMA public"))
+    reset_public_schema(engine)
 
     monkeypatch.setenv("DATABASE_URL", settings.database_url)
     get_settings.cache_clear()
 
-    alembic_config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    alembic_config = build_alembic_config()
     upgraded = False
 
     try:
@@ -74,17 +67,15 @@ def test_alembic_upgrade_head_creates_expected_tables(
 def test_alembic_migration_rejects_cross_campaign_references(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    env_file, settings = load_test_settings()
-    engine = create_engine(settings.database_url, future=True)
+    settings = load_test_settings()
+    engine = create_test_engine(settings)
 
-    with engine.begin() as connection:
-        connection.execute(text("DROP SCHEMA public CASCADE"))
-        connection.execute(text("CREATE SCHEMA public"))
+    reset_public_schema(engine)
 
     monkeypatch.setenv("DATABASE_URL", settings.database_url)
     get_settings.cache_clear()
 
-    alembic_config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    alembic_config = build_alembic_config()
     upgraded = False
 
     try:
@@ -188,17 +179,15 @@ def test_alembic_migration_rejects_cross_campaign_references(
 def test_alembic_migration_restricts_deleting_optional_referenced_parents(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    env_file, settings = load_test_settings()
-    engine = create_engine(settings.database_url, future=True)
+    settings = load_test_settings()
+    engine = create_test_engine(settings)
 
-    with engine.begin() as connection:
-        connection.execute(text("DROP SCHEMA public CASCADE"))
-        connection.execute(text("CREATE SCHEMA public"))
+    reset_public_schema(engine)
 
     monkeypatch.setenv("DATABASE_URL", settings.database_url)
     get_settings.cache_clear()
 
-    alembic_config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    alembic_config = build_alembic_config()
     upgraded = False
 
     try:

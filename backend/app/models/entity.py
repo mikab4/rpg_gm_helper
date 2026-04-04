@@ -3,7 +3,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Text, UniqueConstraint, Uuid
+from sqlalchemy import (
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_document
@@ -36,13 +44,22 @@ class Entity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     type: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_: Mapped[dict[str, object]] = mapped_column("metadata", json_document, default=dict)
+    metadata_: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        json_document,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
     source_document_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
         nullable=True,
     )
     provenance_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    provenance_data: Mapped[dict[str, object]] = mapped_column(json_document, default=dict)
+    provenance_data: Mapped[dict[str, object]] = mapped_column(
+        json_document,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
 
     campaign: Mapped["Campaign"] = relationship(back_populates="entities")
     source_document: Mapped["SourceDocument | None"] = relationship(

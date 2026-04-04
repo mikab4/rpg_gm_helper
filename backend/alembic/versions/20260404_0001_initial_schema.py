@@ -18,6 +18,9 @@ JSONB = postgresql.JSONB(astext_type=sa.Text())
 
 
 def upgrade() -> None:
+    # created_at defaults are mirrored in the ORM and in the database.
+    # updated_at is initialized by the database on insert, but subsequent updates
+    # are application-managed via SQLAlchemy onupdate rather than a DB trigger.
     op.create_table(
         "owners",
         sa.Column("id", UUID, nullable=False),
