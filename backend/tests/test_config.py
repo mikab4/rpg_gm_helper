@@ -7,6 +7,10 @@ from app import config as config_module
 from app.config import Settings, get_settings, load_settings
 
 
+def test_backend_test_env_example_exists() -> None:
+    assert (config_module.DEFAULT_ENV_FILE.parent / ".env.test.example").is_file()
+
+
 def test_settings_do_not_load_env_file_implicitly(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
