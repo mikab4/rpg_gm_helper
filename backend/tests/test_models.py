@@ -33,6 +33,7 @@ def session() -> Session:
 
     with factory() as session:
         yield session
+    engine.dispose()
 
 
 def test_can_persist_and_retrieve_core_records(session: Session) -> None:

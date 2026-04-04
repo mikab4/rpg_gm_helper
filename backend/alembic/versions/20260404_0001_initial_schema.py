@@ -85,10 +85,12 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "campaign_id", name="uq_session_note_id_campaign"),
         sa.UniqueConstraint(
             "campaign_id", "session_number", name="uq_session_note_campaign_number"
         ),
     )
+    op.create_index("ix_session_notes_campaign_id", "session_notes", ["campaign_id"], unique=False)
     op.create_table(
         "source_documents",
         sa.Column("id", UUID, nullable=False),
@@ -111,8 +113,23 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["session_note_id"], ["session_notes.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["session_note_id", "campaign_id"],
+            ["session_notes.id", "session_notes.campaign_id"],
+            name="fk_source_documents_session_note_campaign",
+            ondelete="RESTRICT",
+        ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "campaign_id", name="uq_source_document_id_campaign"),
+    )
+    op.create_index(
+        "ix_source_documents_campaign_id", "source_documents", ["campaign_id"], unique=False
+    )
+    op.create_index(
+        "ix_source_documents_session_note_id_campaign_id",
+        "source_documents",
+        ["session_note_id", "campaign_id"],
+        unique=False,
     )
     op.create_table(
         "extraction_jobs",
@@ -131,9 +148,22 @@ def upgrade() -> None:
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
-            ["source_document_id"], ["source_documents.id"], ondelete="CASCADE"
+            ["source_document_id", "campaign_id"],
+            ["source_documents.id", "source_documents.campaign_id"],
+            name="fk_extraction_jobs_source_document_campaign",
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "campaign_id", name="uq_extraction_job_id_campaign"),
+    )
+    op.create_index(
+        "ix_extraction_jobs_campaign_id", "extraction_jobs", ["campaign_id"], unique=False
+    )
+    op.create_index(
+        "ix_extraction_jobs_source_document_id_campaign_id",
+        "extraction_jobs",
+        ["source_document_id", "campaign_id"],
+        unique=False,
     )
     op.create_table(
         "entities",
@@ -165,9 +195,20 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
-            ["source_document_id"], ["source_documents.id"], ondelete="SET NULL"
+            ["source_document_id", "campaign_id"],
+            ["source_documents.id", "source_documents.campaign_id"],
+            name="fk_entities_source_document_campaign",
+            ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "campaign_id", name="uq_entity_id_campaign"),
+    )
+    op.create_index("ix_entities_campaign_id", "entities", ["campaign_id"], unique=False)
+    op.create_index(
+        "ix_entities_source_document_id_campaign_id",
+        "entities",
+        ["source_document_id", "campaign_id"],
+        unique=False,
     )
     op.create_table(
         "extraction_candidates",
@@ -198,8 +239,25 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["extraction_job_id"], ["extraction_jobs.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["extraction_job_id", "campaign_id"],
+            ["extraction_jobs.id", "extraction_jobs.campaign_id"],
+            name="fk_extraction_candidates_job_campaign",
+            ondelete="CASCADE",
+        ),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "ix_extraction_candidates_campaign_id",
+        "extraction_candidates",
+        ["campaign_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_extraction_candidates_extraction_job_id_campaign_id",
+        "extraction_candidates",
+        ["extraction_job_id", "campaign_id"],
+        unique=False,
     )
     op.create_table(
         "entity_relationships",
@@ -232,15 +290,74 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
-            ["source_document_id"], ["source_documents.id"], ondelete="SET NULL"
+            ["source_document_id", "campaign_id"],
+            ["source_documents.id", "source_documents.campaign_id"],
+            name="fk_entity_relationships_source_document_campaign",
+            ondelete="RESTRICT",
         ),
-        sa.ForeignKeyConstraint(["source_entity_id"], ["entities.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["target_entity_id"], ["entities.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["source_entity_id", "campaign_id"],
+            ["entities.id", "entities.campaign_id"],
+            name="fk_entity_relationships_source_entity_campaign",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["target_entity_id", "campaign_id"],
+            ["entities.id", "entities.campaign_id"],
+            name="fk_entity_relationships_target_entity_campaign",
+            ondelete="CASCADE",
+        ),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "ix_entity_relationships_campaign_id",
+        "entity_relationships",
+        ["campaign_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_entity_relationships_source_entity_id_campaign_id",
+        "entity_relationships",
+        ["source_entity_id", "campaign_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_entity_relationships_target_entity_id_campaign_id",
+        "entity_relationships",
+        ["target_entity_id", "campaign_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_entity_relationships_source_document_id_campaign_id",
+        "entity_relationships",
+        ["source_document_id", "campaign_id"],
+        unique=False,
     )
 
 
 def downgrade() -> None:
+    op.drop_index(
+        "ix_entity_relationships_source_document_id_campaign_id", table_name="entity_relationships"
+    )
+    op.drop_index(
+        "ix_entity_relationships_target_entity_id_campaign_id", table_name="entity_relationships"
+    )
+    op.drop_index(
+        "ix_entity_relationships_source_entity_id_campaign_id", table_name="entity_relationships"
+    )
+    op.drop_index("ix_entity_relationships_campaign_id", table_name="entity_relationships")
+    op.drop_index(
+        "ix_extraction_candidates_extraction_job_id_campaign_id",
+        table_name="extraction_candidates",
+    )
+    op.drop_index("ix_extraction_candidates_campaign_id", table_name="extraction_candidates")
+    op.drop_index("ix_entities_source_document_id_campaign_id", table_name="entities")
+    op.drop_index("ix_entities_campaign_id", table_name="entities")
+    op.drop_index("ix_extraction_jobs_source_document_id_campaign_id", table_name="extraction_jobs")
+    op.drop_index("ix_extraction_jobs_campaign_id", table_name="extraction_jobs")
+    op.drop_index("ix_source_documents_session_note_id_campaign_id", table_name="source_documents")
+    op.drop_index("ix_source_documents_campaign_id", table_name="source_documents")
+    op.drop_index("ix_session_notes_campaign_id", table_name="session_notes")
     op.drop_table("entity_relationships")
     op.drop_table("extraction_candidates")
     op.drop_table("entities")

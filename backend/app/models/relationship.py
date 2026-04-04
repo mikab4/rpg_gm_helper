@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Numeric, Text, Uuid
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Numeric, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_document
@@ -17,6 +17,42 @@ if TYPE_CHECKING:
 
 class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "entity_relationships"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["source_entity_id", "campaign_id"],
+            ["entities.id", "entities.campaign_id"],
+            ondelete="CASCADE",
+            name="fk_entity_relationships_source_entity_campaign",
+        ),
+        ForeignKeyConstraint(
+            ["target_entity_id", "campaign_id"],
+            ["entities.id", "entities.campaign_id"],
+            ondelete="CASCADE",
+            name="fk_entity_relationships_target_entity_campaign",
+        ),
+        ForeignKeyConstraint(
+            ["source_document_id", "campaign_id"],
+            ["source_documents.id", "source_documents.campaign_id"],
+            ondelete="RESTRICT",
+            name="fk_entity_relationships_source_document_campaign",
+        ),
+        Index("ix_entity_relationships_campaign_id", "campaign_id"),
+        Index(
+            "ix_entity_relationships_source_entity_id_campaign_id",
+            "source_entity_id",
+            "campaign_id",
+        ),
+        Index(
+            "ix_entity_relationships_target_entity_id_campaign_id",
+            "target_entity_id",
+            "campaign_id",
+        ),
+        Index(
+            "ix_entity_relationships_source_document_id_campaign_id",
+            "source_document_id",
+            "campaign_id",
+        ),
+    )
 
     campaign_id: Mapped[UUID] = mapped_column(
         Uuid(),
@@ -25,12 +61,10 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     source_entity_id: Mapped[UUID] = mapped_column(
         Uuid(),
-        ForeignKey("entities.id", ondelete="CASCADE"),
         nullable=False,
     )
     target_entity_id: Mapped[UUID] = mapped_column(
         Uuid(),
-        ForeignKey("entities.id", ondelete="CASCADE"),
         nullable=False,
     )
     relationship_type: Mapped[str] = mapped_column(Text, nullable=False)
@@ -38,7 +72,6 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     confidence: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     source_document_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
-        ForeignKey("source_documents.id", ondelete="SET NULL"),
         nullable=True,
     )
     provenance_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -53,4 +86,7 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="incoming_relationships",
         foreign_keys=[target_entity_id],
     )
-    source_document: Mapped["SourceDocument | None"] = relationship(back_populates="relationships")
+    source_document: Mapped["SourceDocument | None"] = relationship(
+        back_populates="relationships",
+        overlaps="campaign,relationships",
+    )

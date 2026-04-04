@@ -4,7 +4,15 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Text, Uuid
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDPrimaryKeyMixin, json_document, utcnow
@@ -16,6 +24,21 @@ if TYPE_CHECKING:
 
 class ExtractionJob(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "extraction_jobs"
+    __table_args__ = (
+        UniqueConstraint("id", "campaign_id", name="uq_extraction_job_id_campaign"),
+        ForeignKeyConstraint(
+            ["source_document_id", "campaign_id"],
+            ["source_documents.id", "source_documents.campaign_id"],
+            ondelete="CASCADE",
+            name="fk_extraction_jobs_source_document_campaign",
+        ),
+        Index("ix_extraction_jobs_campaign_id", "campaign_id"),
+        Index(
+            "ix_extraction_jobs_source_document_id_campaign_id",
+            "source_document_id",
+            "campaign_id",
+        ),
+    )
 
     campaign_id: Mapped[UUID] = mapped_column(
         Uuid(),
@@ -24,7 +47,6 @@ class ExtractionJob(UUIDPrimaryKeyMixin, Base):
     )
     source_document_id: Mapped[UUID] = mapped_column(
         Uuid(),
-        ForeignKey("source_documents.id", ondelete="CASCADE"),
         nullable=False,
     )
     status: Mapped[str] = mapped_column(Text, nullable=False)
@@ -38,12 +60,32 @@ class ExtractionJob(UUIDPrimaryKeyMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     campaign: Mapped["Campaign"] = relationship(back_populates="extraction_jobs")
-    source_document: Mapped["SourceDocument"] = relationship(back_populates="extraction_jobs")
-    candidates: Mapped[list["ExtractionCandidate"]] = relationship(back_populates="extraction_job")
+    source_document: Mapped["SourceDocument"] = relationship(
+        back_populates="extraction_jobs",
+        overlaps="campaign,extraction_jobs",
+    )
+    candidates: Mapped[list["ExtractionCandidate"]] = relationship(
+        back_populates="extraction_job",
+        overlaps="extraction_candidates",
+    )
 
 
 class ExtractionCandidate(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "extraction_candidates"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["extraction_job_id", "campaign_id"],
+            ["extraction_jobs.id", "extraction_jobs.campaign_id"],
+            ondelete="CASCADE",
+            name="fk_extraction_candidates_job_campaign",
+        ),
+        Index("ix_extraction_candidates_campaign_id", "campaign_id"),
+        Index(
+            "ix_extraction_candidates_extraction_job_id_campaign_id",
+            "extraction_job_id",
+            "campaign_id",
+        ),
+    )
 
     campaign_id: Mapped[UUID] = mapped_column(
         Uuid(),
@@ -52,7 +94,6 @@ class ExtractionCandidate(UUIDPrimaryKeyMixin, Base):
     )
     extraction_job_id: Mapped[UUID] = mapped_column(
         Uuid(),
-        ForeignKey("extraction_jobs.id", ondelete="CASCADE"),
         nullable=False,
     )
     candidate_type: Mapped[str] = mapped_column(Text, nullable=False)
@@ -73,5 +114,11 @@ class ExtractionCandidate(UUIDPrimaryKeyMixin, Base):
         nullable=False,
     )
 
-    campaign: Mapped["Campaign"] = relationship(back_populates="extraction_candidates")
-    extraction_job: Mapped["ExtractionJob"] = relationship(back_populates="candidates")
+    campaign: Mapped["Campaign"] = relationship(
+        back_populates="extraction_candidates",
+        overlaps="candidates",
+    )
+    extraction_job: Mapped["ExtractionJob"] = relationship(
+        back_populates="candidates",
+        overlaps="campaign,extraction_candidates",
+    )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Text, Uuid
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_document
@@ -18,6 +18,21 @@ if TYPE_CHECKING:
 
 class SourceDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "source_documents"
+    __table_args__ = (
+        UniqueConstraint("id", "campaign_id", name="uq_source_document_id_campaign"),
+        ForeignKeyConstraint(
+            ["session_note_id", "campaign_id"],
+            ["session_notes.id", "session_notes.campaign_id"],
+            ondelete="RESTRICT",
+            name="fk_source_documents_session_note_campaign",
+        ),
+        Index("ix_source_documents_campaign_id", "campaign_id"),
+        Index(
+            "ix_source_documents_session_note_id_campaign_id",
+            "session_note_id",
+            "campaign_id",
+        ),
+    )
 
     campaign_id: Mapped[UUID] = mapped_column(
         Uuid(),
@@ -26,7 +41,6 @@ class SourceDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     session_note_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
-        ForeignKey("session_notes.id", ondelete="SET NULL"),
         nullable=True,
     )
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -34,8 +48,23 @@ class SourceDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     metadata_: Mapped[dict[str, object]] = mapped_column("metadata", json_document, default=dict)
 
-    campaign: Mapped["Campaign"] = relationship(back_populates="source_documents")
-    session_note: Mapped["SessionNote | None"] = relationship(back_populates="source_documents")
-    extraction_jobs: Mapped[list["ExtractionJob"]] = relationship(back_populates="source_document")
-    entities: Mapped[list["Entity"]] = relationship(back_populates="source_document")
-    relationships: Mapped[list["Relationship"]] = relationship(back_populates="source_document")
+    campaign: Mapped["Campaign"] = relationship(
+        back_populates="source_documents",
+        overlaps="session_note,source_documents",
+    )
+    session_note: Mapped["SessionNote | None"] = relationship(
+        back_populates="source_documents",
+        overlaps="campaign,source_documents",
+    )
+    extraction_jobs: Mapped[list["ExtractionJob"]] = relationship(
+        back_populates="source_document",
+        overlaps="campaign,extraction_jobs",
+    )
+    entities: Mapped[list["Entity"]] = relationship(
+        back_populates="source_document",
+        overlaps="campaign,entities",
+    )
+    relationships: Mapped[list["Relationship"]] = relationship(
+        back_populates="source_document",
+        overlaps="campaign,relationships",
+    )

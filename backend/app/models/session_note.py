@@ -4,7 +4,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Text, UniqueConstraint, Uuid
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -18,10 +18,12 @@ class SessionNote(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "session_notes"
     __table_args__ = (
         UniqueConstraint("campaign_id", "session_number", name="uq_session_note_campaign_number"),
+        UniqueConstraint("id", "campaign_id", name="uq_session_note_id_campaign"),
         CheckConstraint(
             "session_number IS NOT NULL OR session_label IS NOT NULL",
             name="ck_session_notes_number_or_label",
         ),
+        Index("ix_session_notes_campaign_id", "campaign_id"),
     )
 
     campaign_id: Mapped[UUID] = mapped_column(
@@ -35,4 +37,7 @@ class SessionNote(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     campaign: Mapped["Campaign"] = relationship(back_populates="session_notes")
-    source_documents: Mapped[list["SourceDocument"]] = relationship(back_populates="session_note")
+    source_documents: Mapped[list["SourceDocument"]] = relationship(
+        back_populates="session_note",
+        overlaps="campaign,source_documents",
+    )
