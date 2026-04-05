@@ -76,6 +76,9 @@ In scope:
 - Use a rules-first extraction implementation for v1, with a clean interface for a future LLM-backed extractor.
 - Start with pasted text support before adding more complex upload handling if time is tight.
 - Prefer boring, debuggable solutions when tradeoffs are unclear.
+- Prefer explicit variable names that describe the role of the value, not just its type.
+- Avoid broad names like `data`, `payload`, `response`, `result`, or `session` when a more specific name such as `campaign_create`, `created_entity_response`, or `db_session` is available.
+- Apply the same naming rule to fixtures, route handlers, services, and tests.
 
 ## Frontend Guidance
 
