@@ -31,8 +31,7 @@ def create_campaign(campaign_create: CampaignCreate, db_session: DbSession) -> C
 def list_campaigns(db_session: DbSession, owner_id: UUID | None = None) -> list[CampaignResponse]:
     listed_campaigns = campaign_service.list_campaigns(db_session, owner_id=owner_id)
     return [
-        CampaignResponse.model_validate(listed_campaign)
-        for listed_campaign in listed_campaigns
+        CampaignResponse.model_validate(listed_campaign) for listed_campaign in listed_campaigns
     ]
 
 
