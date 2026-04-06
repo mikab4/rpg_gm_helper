@@ -1,18 +1,59 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import anyio.to_thread
+import fastapi.concurrency
+import fastapi.dependencies.utils
+import fastapi.routing
+import httpx
 import pytest
+import starlette.concurrency
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.dependencies import get_db_session
 from app.models import Base
 from app.models.campaign import Campaign
 from app.models.owner import Owner
+
+
+@pytest.fixture
+def sync_api_test_runtime_shim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    # In this sandbox, the normal AnyIO-backed threadpool path hangs for sync
+    # FastAPI handlers under in-process ASGI tests. Inline execution keeps the
+    # HTTP request/response stack, dependency injection, and validation paths in
+    # process without changing production code.
+    async def inline_run_in_threadpool(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    async def inline_run_sync(
+        func,
+        *args,
+        abandon_on_cancel: bool = False,
+        cancellable=None,
+        limiter=None,
+    ):
+        del abandon_on_cancel, cancellable, limiter
+        return func(*args)
+
+    monkeypatch.setattr(starlette.concurrency, "run_in_threadpool", inline_run_in_threadpool)
+    monkeypatch.setattr(fastapi.routing, "run_in_threadpool", inline_run_in_threadpool)
+    monkeypatch.setattr(
+        fastapi.dependencies.utils,
+        "run_in_threadpool",
+        inline_run_in_threadpool,
+    )
+    monkeypatch.setattr(fastapi.concurrency, "run_in_threadpool", inline_run_in_threadpool)
+    monkeypatch.setattr(anyio.to_thread, "run_sync", inline_run_sync)
+    yield
 
 
 @contextmanager
@@ -64,25 +105,86 @@ def db_session(sqlite_engine: Engine) -> Iterator[Session]:
 
 
 @pytest.fixture
-def test_owner(db_session: Session) -> Owner:
-    stored_owner = Owner(
-        email="gm@example.com",
-        display_name="Local GM",
-    )
-    db_session.add(stored_owner)
-    db_session.commit()
-    db_session.refresh(stored_owner)
-    return stored_owner
+def db_session_factory(sqlite_engine: Engine):
+    return sessionmaker(bind=sqlite_engine, expire_on_commit=False, future=True)
 
 
 @pytest.fixture
-def test_campaign(db_session: Session, test_owner: Owner) -> Campaign:
-    stored_campaign = Campaign(
-        owner_id=test_owner.id,
-        name="Shadows of Glass",
-        description="Urban intrigue campaign",
+def test_owner(db_session_factory) -> Owner:
+    with db_session_factory() as db_session:
+        stored_owner = Owner(
+            email="gm@example.com",
+            display_name="Local GM",
+        )
+        db_session.add(stored_owner)
+        db_session.commit()
+        db_session.refresh(stored_owner)
+        db_session.expunge(stored_owner)
+        return stored_owner
+
+
+@pytest.fixture
+def test_campaign(db_session_factory, test_owner: Owner) -> Campaign:
+    with db_session_factory() as db_session:
+        stored_campaign = Campaign(
+            owner_id=test_owner.id,
+            name="Shadows of Glass",
+            description="Urban intrigue campaign",
+        )
+        db_session.add(stored_campaign)
+        db_session.commit()
+        db_session.refresh(stored_campaign)
+        db_session.expunge(stored_campaign)
+        return stored_campaign
+
+
+@pytest.fixture
+def test_app(sqlite_engine: Engine, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite+pysqlite:///unused-for-tests.db")
+
+    from app.main import create_app
+
+    app = create_app(
+        settings=None,
     )
-    db_session.add(stored_campaign)
-    db_session.commit()
-    db_session.refresh(stored_campaign)
-    return stored_campaign
+
+    def override_get_db_session():
+        with Session(sqlite_engine, expire_on_commit=False) as db_session:
+            yield db_session
+
+    app.dependency_overrides[get_db_session] = override_get_db_session
+
+    try:
+        yield app
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def api_client_factory(test_app, sync_api_test_runtime_shim):
+    def create_api_client() -> httpx.AsyncClient:
+        transport = httpx.ASGITransport(app=test_app)
+        return httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            timeout=5.0,
+        )
+
+    return create_api_client
+
+
+@pytest.fixture
+def api_request(test_app, sync_api_test_runtime_shim):
+    def issue_api_request(method: str, path: str, **kwargs):
+        async def send_request():
+            transport = httpx.ASGITransport(app=test_app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+                timeout=5.0,
+            ) as api_client:
+                return await api_client.request(method, path, **kwargs)
+
+        return asyncio.run(send_request())
+
+    return issue_api_request
