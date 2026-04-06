@@ -32,10 +32,23 @@ class EntityUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_entity_update_fields(self) -> "EntityUpdate":
-        no_entity_type_update = self.type is None
-        no_entity_name_update = self.name is None
+        null_entity_type_update = self.type is None and "type" in self.model_fields_set
+        null_entity_name_update = self.name is None and "name" in self.model_fields_set
+        null_metadata_update = self.metadata is None and "metadata" in self.model_fields_set
+
+        no_entity_type_update = "type" not in self.model_fields_set
+        no_entity_name_update = "name" not in self.model_fields_set
         no_summary_update = self.summary is None and "summary" not in self.model_fields_set
-        no_metadata_update = self.metadata is None
+        no_metadata_update = "metadata" not in self.model_fields_set
+
+        if null_entity_type_update:
+            raise ValueError("Entity type cannot be null.")
+
+        if null_entity_name_update:
+            raise ValueError("Entity name cannot be null.")
+
+        if null_metadata_update:
+            raise ValueError("Entity metadata cannot be null.")
 
         if (
             no_entity_type_update

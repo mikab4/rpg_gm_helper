@@ -227,3 +227,31 @@ def test_get_entity_returns_not_found_for_campaign_mismatch(
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Entity not found."}
+
+
+def test_update_entity_returns_422_for_null_name(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        stored_entity = Entity(
+            campaign_id=test_campaign.id,
+            type="npc",
+            name="Magistrate Ilya",
+        )
+        db_session.add(stored_entity)
+        db_session.commit()
+        db_session.refresh(stored_entity)
+        stored_entity_id = stored_entity.id
+
+    response = api_request(
+        "PATCH",
+        f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
+        json={
+            "name": None,
+            "summary": "Updated",
+        },
+    )
+
+    assert response.status_code == 422

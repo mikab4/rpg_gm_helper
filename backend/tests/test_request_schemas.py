@@ -100,6 +100,22 @@ def test_optional_free_text_update_fields_allow_null_to_clear() -> None:
     assert entity_update.summary is None
 
 
+def test_update_models_reject_null_for_non_nullable_identifiers() -> None:
+    with pytest.raises(ValidationError):
+        CampaignUpdate(name=None, description="Updated")
+
+    with pytest.raises(ValidationError):
+        EntityUpdate(name=None, summary="Updated")
+
+    with pytest.raises(ValidationError):
+        EntityUpdate(type=None, summary="Updated")
+
+
+def test_entity_update_rejects_null_metadata() -> None:
+    with pytest.raises(ValidationError):
+        EntityUpdate(metadata=None, summary="Updated")
+
+
 def test_update_models_reject_empty_payloads() -> None:
     with pytest.raises(ValidationError):
         CampaignUpdate()

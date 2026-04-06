@@ -24,10 +24,14 @@ class CampaignUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_campaign_update_fields(self) -> "CampaignUpdate":
-        no_campaign_name_update = self.name is None
+        null_campaign_name_update = self.name is None and "name" in self.model_fields_set
+        no_campaign_name_update = "name" not in self.model_fields_set
         no_description_update = (
             self.description is None and "description" not in self.model_fields_set
         )
+
+        if null_campaign_name_update:
+            raise ValueError("Campaign name cannot be null.")
 
         if no_campaign_name_update and no_description_update:
             raise ValueError("At least one campaign field must be provided.")

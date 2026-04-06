@@ -133,3 +133,19 @@ def test_get_update_and_delete_campaign_flow(
 
     missing_response = api_request("GET", f"/api/campaigns/{test_campaign.id}")
     assert missing_response.status_code == 404
+
+
+def test_update_campaign_returns_422_for_null_name(
+    api_request,
+    test_campaign: Campaign,
+) -> None:
+    response = api_request(
+        "PATCH",
+        f"/api/campaigns/{test_campaign.id}",
+        json={
+            "name": None,
+            "description": "Updated",
+        },
+    )
+
+    assert response.status_code == 422
