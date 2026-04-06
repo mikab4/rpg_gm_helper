@@ -10,12 +10,17 @@ from app.schemas import EntityCreate, EntityUpdate
 from app.services.errors import NotFoundError
 
 
-def create_entity(db_session: Session, entity_create: EntityCreate) -> Entity:
-    if db_session.get(Campaign, entity_create.campaign_id) is None:
+def create_entity(
+    db_session: Session,
+    *,
+    campaign_id: UUID,
+    entity_create: EntityCreate,
+) -> Entity:
+    if db_session.get(Campaign, campaign_id) is None:
         raise NotFoundError("Campaign not found.")
 
     created_entity = Entity(
-        campaign_id=entity_create.campaign_id,
+        campaign_id=campaign_id,
         type=entity_create.type,
         name=entity_create.name,
         summary=entity_create.summary,
@@ -30,10 +35,13 @@ def create_entity(db_session: Session, entity_create: EntityCreate) -> Entity:
 def list_entities(
     db_session: Session,
     *,
-    campaign_id: UUID,
+    campaign_id: UUID | None = None,
     entity_type: str | None = None,
 ) -> list[Entity]:
-    statement = select(Entity).where(Entity.campaign_id == campaign_id)
+    statement = select(Entity)
+    if campaign_id is not None:
+        statement = statement.where(Entity.campaign_id == campaign_id)
+
     if entity_type is not None:
         statement = statement.where(Entity.type == entity_type)
 
@@ -41,8 +49,12 @@ def list_entities(
     return list(db_session.scalars(statement))
 
 
-def get_entity(db_session: Session, entity_id: UUID) -> Entity:
-    stored_entity = db_session.get(Entity, entity_id)
+def get_entity(db_session: Session, *, campaign_id: UUID, entity_id: UUID) -> Entity:
+    statement = select(Entity).where(
+        Entity.id == entity_id,
+        Entity.campaign_id == campaign_id,
+    )
+    stored_entity = db_session.scalar(statement)
     if stored_entity is None:
         raise NotFoundError("Entity not found.")
     return stored_entity
@@ -50,10 +62,16 @@ def get_entity(db_session: Session, entity_id: UUID) -> Entity:
 
 def update_entity(
     db_session: Session,
+    *,
+    campaign_id: UUID,
     entity_id: UUID,
     entity_update: EntityUpdate,
 ) -> Entity:
-    stored_entity = get_entity(db_session, entity_id)
+    stored_entity = get_entity(
+        db_session,
+        campaign_id=campaign_id,
+        entity_id=entity_id,
+    )
     entity_update_fields = entity_update.model_dump(exclude_unset=True)
 
     if "metadata" in entity_update_fields:
@@ -67,7 +85,11 @@ def update_entity(
     return stored_entity
 
 
-def delete_entity(db_session: Session, entity_id: UUID) -> None:
-    stored_entity = get_entity(db_session, entity_id)
+def delete_entity(db_session: Session, *, campaign_id: UUID, entity_id: UUID) -> None:
+    stored_entity = get_entity(
+        db_session,
+        campaign_id=campaign_id,
+        entity_id=entity_id,
+    )
     db_session.delete(stored_entity)
     db_session.commit()

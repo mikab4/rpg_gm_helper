@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class EntityCreate(BaseModel):
-    campaign_id: UUID
     type: str
     name: str
     summary: str | None = None
