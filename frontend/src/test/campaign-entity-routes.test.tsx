@@ -34,6 +34,7 @@ describe("campaign and entity frontend routes", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.resetModules();
+    window.localStorage.clear();
   });
 
   it("renders the campaigns page with fetched campaigns", async () => {
@@ -171,6 +172,54 @@ describe("campaign and entity frontend routes", () => {
         "This is the campaign cockpit summary: enough orientation to stay in flow now, with room for notes, relationships, and extraction surfaces later.",
       ),
     ).toBeNull();
+  });
+
+  it("keeps campaign quick notes locally across remounts", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          body: {
+            id: "campaign-1",
+            owner_id: "owner-1",
+            name: "Shadows of Glass",
+            description: "Urban intrigue campaign",
+            created_at: "2026-04-08T12:00:00Z",
+            updated_at: "2026-04-08T12:00:00Z",
+          },
+        }),
+      ),
+    );
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1"],
+    });
+
+    const { unmount } = render(<RouterProvider router={router} />);
+
+    const quickNotes = await screen.findByRole("textbox", { name: "Quick Notes" });
+    fireEvent.change(quickNotes, {
+      target: { value: "Remember the king's brother knows the east gate signal." },
+    });
+
+    expect(window.localStorage.getItem("gm-workspace:campaign-quick-notes:campaign-1")).toBe(
+      "Remember the king's brother knows the east gate signal.",
+    );
+
+    unmount();
+
+    const remountRouter = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1"],
+    });
+
+    render(<RouterProvider router={remountRouter} />);
+
+    expect(await screen.findByRole("textbox", { name: "Quick Notes" })).toHaveValue(
+      "Remember the king's brother knows the east gate signal.",
+    );
   });
 
   it("exposes edit and delete actions from the campaign workspace", async () => {
