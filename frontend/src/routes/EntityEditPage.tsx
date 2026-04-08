@@ -91,10 +91,13 @@ export function EntityEditPage() {
     }
 
     setDeleting(true);
+    setSubmitError(null);
 
     try {
       await deleteEntity(pageState.campaign.id, entityId);
       await navigate(`/campaigns/${pageState.campaign.id}/entities`);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Unknown entity delete failure.");
     } finally {
       setDeleting(false);
     }

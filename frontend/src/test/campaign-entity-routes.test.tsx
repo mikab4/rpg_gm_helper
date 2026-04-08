@@ -807,4 +807,83 @@ describe("campaign and entity frontend routes", () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("shows a user-facing error when entity delete fails from the edit page", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/campaigns/campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                id: "campaign-1",
+                owner_id: "owner-1",
+                name: "Shadows of Glass",
+                description: "Urban intrigue campaign",
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        if (
+          requestUrl.endsWith("/campaigns/campaign-1/entities/entity-1") &&
+          init?.method !== "DELETE"
+        ) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                id: "entity-1",
+                campaign_id: "campaign-1",
+                type: "npc",
+                name: "Magistrate Ilya",
+                summary: "Brother of Rowan, magistrate of the lower ward.",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        if (
+          requestUrl.endsWith("/campaigns/campaign-1/entities/entity-1") &&
+          init?.method === "DELETE"
+        ) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: false,
+              status: 404,
+              body: {
+                detail: "Entity no longer exists.",
+              },
+            }),
+          );
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
+    );
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1/entities/entity-1/edit"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Entity" }));
+
+    expect(await screen.findByText("Entity no longer exists.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Entity" })).toBeEnabled();
+  });
 });
