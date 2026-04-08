@@ -1,28 +1,13 @@
-import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import { SectionPanel } from "../components/SectionPanel";
+import { useLocalStorageState } from "../hooks/useLocalStorageState";
 import type { CampaignWorkspaceContext } from "./CampaignWorkspacePage";
 
 export function CampaignOverviewTab() {
   const { campaign } = useOutletContext<CampaignWorkspaceContext>();
   const quickNotesStorageKey = `gm-workspace:campaign-quick-notes:${campaign.id}`;
-  const [quickNotes, setQuickNotes] = useState("");
-  const pendingHydrationKey = useRef<string | null>(null);
-
-  useEffect(() => {
-    pendingHydrationKey.current = quickNotesStorageKey;
-    setQuickNotes(window.localStorage.getItem(quickNotesStorageKey) ?? "");
-  }, [quickNotesStorageKey]);
-
-  useEffect(() => {
-    if (pendingHydrationKey.current === quickNotesStorageKey) {
-      pendingHydrationKey.current = null;
-      return;
-    }
-
-    window.localStorage.setItem(quickNotesStorageKey, quickNotes);
-  }, [quickNotes, quickNotesStorageKey]);
+  const [quickNotes, setQuickNotes] = useLocalStorageState(quickNotesStorageKey);
 
   return (
     <div className="campaign-overview-layout">

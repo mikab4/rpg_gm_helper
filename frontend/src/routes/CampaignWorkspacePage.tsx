@@ -1,5 +1,5 @@
-import { Link, Outlet, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Link, Outlet, useParams } from "react-router-dom";
 
 import { deleteCampaign, getCampaign } from "../api/campaigns";
 import { CampaignWorkspaceTabs } from "../components/CampaignWorkspaceTabs";
@@ -15,14 +15,16 @@ export type CampaignWorkspaceContext = {
   campaign: Campaign;
 };
 
-type CampaignDeleteState = { status: "idle" } | { campaignName: string; status: "deleted" };
+type CampaignDeleteState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { campaignName: string; status: "deleted" }
+  | { message: string; status: "error" };
 
 export function CampaignWorkspacePage() {
   const { campaignId } = useParams();
   const [pageState, setPageState] = useState<CampaignWorkspaceState>({ status: "loading" });
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteState, setDeleteState] = useState<CampaignDeleteState>({ status: "idle" });
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -56,20 +58,20 @@ export function CampaignWorkspacePage() {
   }, [campaignId]);
 
   async function handleDelete() {
-    if (pageState.status !== "ready" || deleting) {
+    if (pageState.status !== "ready" || deleteState.status === "submitting") {
       return;
     }
 
-    setDeleting(true);
-    setDeleteError(null);
+    setDeleteState({ status: "submitting" });
 
     try {
       await deleteCampaign(pageState.campaign.id);
       setDeleteState({ campaignName: pageState.campaign.name, status: "deleted" });
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : "Unknown campaign delete failure.");
-    } finally {
-      setDeleting(false);
+      setDeleteState({
+        message: error instanceof Error ? error.message : "Unknown campaign delete failure.",
+        status: "error",
+      });
     }
   }
 
@@ -119,15 +121,15 @@ export function CampaignWorkspacePage() {
           </Link>
           <button
             className="danger-button"
-            disabled={deleting}
+            disabled={deleteState.status === "submitting"}
             type="button"
             onClick={() => void handleDelete()}
           >
-            {deleting ? "Deleting..." : "Delete Campaign"}
+            {deleteState.status === "submitting" ? "Deleting..." : "Delete Campaign"}
           </button>
         </div>
       </div>
-      {deleteError ? <p className="field-error">{deleteError}</p> : null}
+      {deleteState.status === "error" ? <p className="field-error">{deleteState.message}</p> : null}
       <CampaignWorkspaceTabs campaignId={pageState.campaign.id} />
       <Outlet context={{ campaign: pageState.campaign } satisfies CampaignWorkspaceContext} />
     </div>
