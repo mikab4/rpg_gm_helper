@@ -33,24 +33,30 @@ class Campaign(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     session_notes: Mapped[list["SessionNote"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
+        passive_deletes="all",
     )
     source_documents: Mapped[list["SourceDocument"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
+        passive_deletes="all",
     )
     extraction_jobs: Mapped[list["ExtractionJob"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
+        passive_deletes="all",
     )
     extraction_candidates: Mapped[list["ExtractionCandidate"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
+        passive_deletes="all",
     )
     entities: Mapped[list["Entity"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
+        passive_deletes="all",
     )
     relationships: Mapped[list["Relationship"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
+        passive_deletes="all",
     )

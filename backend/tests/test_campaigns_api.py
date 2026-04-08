@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.models.campaign import Campaign
+from app.models.entity import Entity
 from app.models.owner import Owner
 
 
@@ -129,6 +130,30 @@ def test_get_update_and_delete_campaign_flow(
     assert update_response.json()["description"] == "Updated"
 
     delete_response = api_request("DELETE", f"/api/campaigns/{test_campaign.id}")
+    assert delete_response.status_code == 204
+
+    missing_response = api_request("GET", f"/api/campaigns/{test_campaign.id}")
+    assert missing_response.status_code == 404
+
+
+def test_delete_campaign_succeeds_when_campaign_has_entities(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        db_session.add(
+            Entity(
+                campaign_id=test_campaign.id,
+                type="npc",
+                name="Zam the man",
+                summary="Head of wappana",
+            )
+        )
+        db_session.commit()
+
+    delete_response = api_request("DELETE", f"/api/campaigns/{test_campaign.id}")
+
     assert delete_response.status_code == 204
 
     missing_response = api_request("GET", f"/api/campaigns/{test_campaign.id}")
