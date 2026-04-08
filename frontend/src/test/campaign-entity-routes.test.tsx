@@ -173,6 +173,80 @@ describe("campaign and entity frontend routes", () => {
     ).toBeNull();
   });
 
+  it("exposes edit and delete actions from the campaign workspace", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    const fetchSpy = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const requestUrl = getRequestUrl(input);
+
+      if (requestUrl.endsWith("/campaigns/campaign-1") && init?.method !== "DELETE") {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: {
+              id: "campaign-1",
+              owner_id: "owner-1",
+              name: "Shadows of Glass",
+              description: "Urban intrigue campaign",
+              created_at: "2026-04-08T12:00:00Z",
+              updated_at: "2026-04-08T12:00:00Z",
+            },
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns/campaign-1") && init?.method === "DELETE") {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            status: 204,
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [],
+          }),
+        );
+      }
+
+      throw new Error(`Unhandled request URL: ${requestUrl}`);
+    });
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("link", { name: "Edit Campaign" })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/edit",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Campaign" }));
+
+    expect(await screen.findByRole("heading", { name: "Campaign deleted" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Campaigns" })).toHaveAttribute(
+      "href",
+      "/campaigns",
+    );
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "http://example.test/api/campaigns/campaign-1",
+        expect.objectContaining({
+          method: "DELETE",
+        }),
+      );
+    });
+  });
+
   it("renders campaign-scoped entities inside the campaign workspace", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
     vi.stubGlobal(
