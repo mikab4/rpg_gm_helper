@@ -7,9 +7,11 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    field_validator,
     model_validator,
 )
 
+from app.schemas.entity_types import validate_entity_type
 from app.schemas.types import NonBlankString, OptionalNonBlankString
 
 
@@ -21,6 +23,11 @@ class EntityCreate(BaseModel):
     summary: OptionalNonBlankString = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
+    @field_validator("type")
+    @classmethod
+    def validate_known_entity_type(cls, entity_type: str) -> str:
+        return validate_entity_type(entity_type)
+
 
 class EntityUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -29,6 +36,14 @@ class EntityUpdate(BaseModel):
     name: OptionalNonBlankString = None
     summary: OptionalNonBlankString = None
     metadata: dict[str, object] | None = None
+
+    @field_validator("type")
+    @classmethod
+    def validate_known_entity_type(cls, entity_type: str | None) -> str | None:
+        if entity_type is None:
+            return entity_type
+
+        return validate_entity_type(entity_type)
 
     @model_validator(mode="after")
     def validate_entity_update_fields(self) -> "EntityUpdate":

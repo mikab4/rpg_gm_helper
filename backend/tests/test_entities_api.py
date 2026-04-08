@@ -72,7 +72,7 @@ def test_list_all_entities_returns_cross_campaign_results(
         db_session.add_all(
             [
                 Entity(campaign_id=test_campaign.id, type="npc", name="Magistrate Ilya"),
-                Entity(campaign_id=second_campaign.id, type="demon", name="Varkesh"),
+                Entity(campaign_id=second_campaign.id, type="faction", name="Varkesh"),
             ]
         )
         db_session.commit()
@@ -172,7 +172,7 @@ def test_get_update_and_delete_entity_flow(
         "PATCH",
         f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
         json={
-            "type": "ally",
+            "type": "faction",
             "name": "Ilya",
             "summary": "After update",
             "metadata": {"rank": "magistrate"},
@@ -180,7 +180,7 @@ def test_get_update_and_delete_entity_flow(
     )
 
     assert update_response.status_code == 200
-    assert update_response.json()["type"] == "ally"
+    assert update_response.json()["type"] == "faction"
     assert update_response.json()["name"] == "Ilya"
     assert update_response.json()["summary"] == "After update"
     assert update_response.json()["metadata"] == {"rank": "magistrate"}

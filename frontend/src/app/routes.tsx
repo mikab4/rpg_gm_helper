@@ -1,6 +1,15 @@
 import { createBrowserRouter, type RouteObject } from "react-router-dom";
 
 import { AppShell } from "./AppShell";
+import { CampaignEntitiesTab } from "../routes/CampaignEntitiesTab";
+import { CampaignFormPage } from "../routes/CampaignFormPage";
+import { CampaignOverviewTab } from "../routes/CampaignOverviewTab";
+import { CampaignWorkspacePage } from "../routes/CampaignWorkspacePage";
+import { CampaignsPage } from "../routes/CampaignsPage";
+import { EntitiesPage } from "../routes/EntitiesPage";
+import { EntityDetailPage } from "../routes/EntityDetailPage";
+import { EntityEditPage } from "../routes/EntityEditPage";
+import { EntityFormPage } from "../routes/EntityFormPage";
 import { OverviewPage } from "../routes/OverviewPage";
 import { PlaceholderPage } from "../routes/PlaceholderPage";
 
@@ -15,21 +24,49 @@ export const routes: RouteObject[] = [
       },
       {
         path: "campaigns",
-        element: (
-          <PlaceholderPage
-            description="Campaign CRUD screens land here once the backend campaign endpoints are in place."
-            title="Campaigns"
-          />
-        ),
+        element: <CampaignsPage />,
+      },
+      {
+        path: "campaigns/new",
+        element: <CampaignFormPage mode="create" />,
+      },
+      {
+        path: "campaigns/:campaignId",
+        element: <CampaignWorkspacePage />,
+        children: [
+          {
+            index: true,
+            element: <CampaignOverviewTab />,
+          },
+          {
+            path: "entities",
+            element: <CampaignEntitiesTab />,
+          },
+        ],
+      },
+      {
+        path: "campaigns/:campaignId/edit",
+        element: <CampaignFormPage mode="edit" />,
+      },
+      {
+        path: "campaigns/:campaignId/entities/new",
+        element: <EntityFormPage source="campaign" />,
+      },
+      {
+        path: "campaigns/:campaignId/entities/:entityId",
+        element: <EntityDetailPage />,
+      },
+      {
+        path: "campaigns/:campaignId/entities/:entityId/edit",
+        element: <EntityEditPage />,
       },
       {
         path: "entities",
-        element: (
-          <PlaceholderPage
-            description="Entity CRUD stays out of the scaffold until backend contracts exist and can drive real client types."
-            title="Entities"
-          />
-        ),
+        element: <EntitiesPage />,
+      },
+      {
+        path: "entities/new",
+        element: <EntityFormPage source="global" />,
       },
       {
         path: "session-notes",

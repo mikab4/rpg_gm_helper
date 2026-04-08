@@ -82,11 +82,13 @@ In scope:
 
 ## Frontend Guidance
 
-- Keep the v1 UI admin-style and task-oriented; do not spend the milestone on a heavy design system or marketing-style polish.
+- Keep the v1 UI task-oriented and high-utility, but do not default to a bland utility look if a stronger workspace identity improves usability.
 - Start with routing, a shared layout, and typed API request and response shapes that match backend contracts.
 - Prefer simple React state and straightforward form handling until real complexity justifies additional client-side abstractions.
 - Do not add frontend infrastructure such as Redux, React Query, Zustand, or SSR frameworks unless a concrete requirement appears.
-- Optimize for a working CRUD, extraction review, and search flow over visual ambition.
+- Prefer one coherent visual language across the app rather than mixing unrelated aesthetics.
+- Distinctive styling is allowed when it supports orientation and flow; avoid spectacle that makes tables, forms, and relationship scanning harder.
+- Optimize for a working CRUD, extraction review, and search flow, but treat empty states, offline states, and navigation context as product design work, not throwaway scaffolding.
 
 ## Verification Expectations
 

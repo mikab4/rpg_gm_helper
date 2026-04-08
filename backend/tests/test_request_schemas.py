@@ -58,7 +58,7 @@ def test_request_models_trim_non_blank_strings() -> None:
         description="  Frontier survival  ",
     )
     created_entity = EntityCreate(
-        type="  npc  ",
+        type="  NPC  ",
         name="  Magistrate Ilya  ",
         summary="  A city official with a hidden agenda.  ",
     )
@@ -83,7 +83,7 @@ def test_optional_free_text_fields_reject_blank_strings() -> None:
 
     with pytest.raises(ValidationError):
         EntityCreate(
-            type="npc",
+            type="NPC",
             name="Magistrate Ilya",
             summary="   ",
         )
@@ -122,3 +122,12 @@ def test_update_models_reject_empty_payloads() -> None:
 
     with pytest.raises(ValidationError):
         EntityUpdate()
+
+
+@pytest.mark.parametrize("invalid_entity_type", ["Character", "Settlement", ""])
+def test_entity_request_models_reject_unknown_entity_types(invalid_entity_type: str) -> None:
+    with pytest.raises(ValidationError):
+        EntityCreate(type=invalid_entity_type, name="Magistrate Ilya")
+
+    with pytest.raises(ValidationError):
+        EntityUpdate(type=invalid_entity_type, summary="Updated")

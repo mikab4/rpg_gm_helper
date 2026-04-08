@@ -159,6 +159,13 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 3. Connect the screens to the typed API client for the new backend CRUD endpoints.
 4. Handle loading, success, and API error states clearly so the full campaign and entity flow is demoable.
 
+**Deferred UX decisions to carry forward:**
+- The Overview should weight `New Entity` more heavily than `New Campaign` if actual usage continues to support that assumption.
+- Quick-look side panels should remain the primary low-cost inspection flow; deeper pages should be escalation paths, not the default.
+- Full profile and edit screens should be tightened for higher information density if scrolling cost remains too high.
+- Entity `type` should move from free text to a constrained choice during the frontend/backend cleanup pass for entity consistency.
+- Type-sensitive forms are explicitly deferred until richer typed metadata or relationship semantics exist.
+
 ### Task 7: Relationships, notes, and documents backend
 
 **Files:**
@@ -174,6 +181,11 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 3. Implement document creation via pasted text first, with file upload optional if time allows.
 4. Add tests covering cross-campaign validation and raw text storage.
 
+**Design decisions to revisit in this task:**
+- How should relationship labels be phrased so they match GM mental models instead of backend field names?
+- Which relationship types should be constrained choices in v1 versus flexible free text?
+- What relationship summary should be available on entity lists and quick-look panels without requiring full-page navigation?
+
 ### Task 8: Notes and documents frontend
 
 **Files:**
@@ -185,6 +197,10 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 2. Add a document paste or upload view that creates source documents.
 3. Connect note and document screens to the typed API client without moving validation rules into React.
 4. Verify the note and document flow is usable end-to-end before starting extraction work.
+
+**Design decisions to revisit in this task:**
+- Which note and document facts belong in quick inspection surfaces versus full editing pages?
+- How should campaign context remain visible while working inside notes/documents so users do not lose orientation?
 
 ### Task 9: Extraction pipeline contract and rules-based implementation
 
@@ -226,6 +242,10 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 3. Add approve, reject, and edit actions wired to the review endpoints.
 4. Verify the extraction-to-review flow works visually from raw text through approved records.
 
+**Design decisions to revisit in this task:**
+- Should extraction review expose quick-look side panels so users can compare a candidate against existing records without leaving the review queue?
+- Which candidate fields should be editable inline versus requiring a dedicated edit surface?
+
 ### Task 12: Search backend
 
 **Files:**
@@ -249,6 +269,11 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 2. Display grouped results for entities and notes.
 3. Support campaign-scoped filtering in the UI using backend-provided contracts.
 4. Verify search works end-to-end against the seeded demo data and sample notes.
+
+**Design decisions to revisit in this task:**
+- The search experience should follow `search first, then filter` for fact-finding.
+- Campaign and type filters should narrow results after users begin foraging for a fact, not force a form-like sequence before discovery.
+- Search result rows should expose enough relationship scent to reduce unnecessary page visits.
 
 ### Task 14: Demo polish and documentation
 
