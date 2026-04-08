@@ -205,9 +205,11 @@ describe("campaign and entity frontend routes", () => {
       target: { value: "Remember the king's brother knows the east gate signal." },
     });
 
-    expect(window.localStorage.getItem("gm-workspace:campaign-quick-notes:campaign-1")).toBe(
-      "Remember the king's brother knows the east gate signal.",
-    );
+    await waitFor(() => {
+      expect(window.localStorage.getItem("gm-workspace:campaign-quick-notes:campaign-1")).toBe(
+        "Remember the king's brother knows the east gate signal.",
+      );
+    });
 
     unmount();
 
@@ -217,9 +219,11 @@ describe("campaign and entity frontend routes", () => {
 
     render(<RouterProvider router={remountRouter} />);
 
-    expect(await screen.findByRole("textbox", { name: "Quick Notes" })).toHaveValue(
-      "Remember the king's brother knows the east gate signal.",
-    );
+    await waitFor(() => {
+      expect(screen.getByRole("textbox", { name: "Quick Notes" })).toHaveValue(
+        "Remember the king's brother knows the east gate signal.",
+      );
+    });
   });
 
   it("exposes edit and delete actions from the campaign workspace", async () => {
