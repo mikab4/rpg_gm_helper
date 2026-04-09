@@ -166,37 +166,41 @@ Sequence the work as vertical slices after the shared foundation. The point is t
 - Entity `type` should move from free text to a constrained choice during the frontend/backend cleanup pass for entity consistency.
 - Type-sensitive forms are explicitly deferred until richer typed metadata or relationship semantics exist.
 
-### Task 7: Relationships, notes, and documents backend
+### Task 7: Relationships backend and frontend
 
 **Files:**
 - Create: `backend/app/api/relationships.py`
-- Create: `backend/app/api/session_notes.py`
-- Create: `backend/app/api/documents.py`
 - Create: `backend/tests/test_relationships_api.py`
-- Create: `backend/tests/test_notes_and_documents_api.py`
+- Create: `frontend/src/pages/RelationshipsPage.tsx`
+- Create: `frontend/src/pages/RelationshipDetailPage.tsx`
 
 **Steps:**
 1. Implement CRUD for relationships with campaign ownership validation.
-2. Implement CRUD for session notes.
-3. Implement document creation via pasted text first, with file upload optional if time allows.
-4. Add tests covering cross-campaign validation and raw text storage.
+2. Add tests covering cross-campaign validation and relationship CRUD behavior.
+3. Build relationship list and edit flows in the frontend.
+4. Connect relationship screens to the typed API client so the full relationship flow is demoable end-to-end.
 
 **Design decisions to revisit in this task:**
 - How should relationship labels be phrased so they match GM mental models instead of backend field names?
 - Which relationship types should be constrained choices in v1 versus flexible free text?
 - What relationship summary should be available on entity lists and quick-look panels without requiring full-page navigation?
 
-### Task 8: Notes and documents frontend
+### Task 8: Notes and documents backend and frontend
 
 **Files:**
+- Create: `backend/app/api/session_notes.py`
+- Create: `backend/app/api/documents.py`
+- Create: `backend/tests/test_notes_and_documents_api.py`
 - Create: `frontend/src/pages/NotesPage.tsx`
 - Create: `frontend/src/pages/DocumentsPage.tsx`
 
 **Steps:**
-1. Build session note list and edit flows.
-2. Add a document paste or upload view that creates source documents.
-3. Connect note and document screens to the typed API client without moving validation rules into React.
-4. Verify the note and document flow is usable end-to-end before starting extraction work.
+1. Implement CRUD for session notes.
+2. Implement document creation via pasted text first, with file upload optional if time allows.
+3. Add tests covering raw text storage and note/document CRUD behavior.
+4. Build session note and document list and edit flows in the frontend.
+5. Connect note and document screens to the typed API client without moving validation rules into React.
+6. Verify the note and document flow is usable end-to-end before starting extraction work.
 
 **Design decisions to revisit in this task:**
 - Which note and document facts belong in quick inspection surfaces versus full editing pages?
