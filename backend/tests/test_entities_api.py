@@ -14,7 +14,7 @@ def test_create_entity_returns_created_record(
         "POST",
         f"/api/campaigns/{test_campaign.id}/entities",
         json={
-            "type": "npc",
+            "type": "person",
             "name": "Magistrate Ilya",
             "summary": "A city official with a hidden agenda.",
             "metadata": {"faction": "City Watch"},
@@ -23,7 +23,7 @@ def test_create_entity_returns_created_record(
 
     assert response.status_code == 201
     assert response.json()["campaign_id"] == str(test_campaign.id)
-    assert response.json()["type"] == "npc"
+    assert response.json()["type"] == "person"
     assert response.json()["name"] == "Magistrate Ilya"
     assert response.json()["metadata"] == {"faction": "City Watch"}
 
@@ -33,7 +33,7 @@ def test_create_entity_returns_not_found_for_unknown_campaign(api_request) -> No
         "POST",
         f"/api/campaigns/{uuid4()}/entities",
         json={
-            "type": "npc",
+            "type": "person",
             "name": "Magistrate Ilya",
         },
     )
@@ -50,7 +50,7 @@ def test_create_entity_returns_422_for_blank_name(
         "POST",
         f"/api/campaigns/{test_campaign.id}/entities",
         json={
-            "type": "npc",
+            "type": "person",
             "name": "   ",
         },
     )
@@ -71,8 +71,8 @@ def test_list_all_entities_returns_cross_campaign_results(
 
         db_session.add_all(
             [
-                Entity(campaign_id=test_campaign.id, type="npc", name="Magistrate Ilya"),
-                Entity(campaign_id=second_campaign.id, type="faction", name="Varkesh"),
+                Entity(campaign_id=test_campaign.id, type="person", name="Magistrate Ilya"),
+                Entity(campaign_id=second_campaign.id, type="organization", name="Varkesh"),
             ]
         )
         db_session.commit()
@@ -99,9 +99,9 @@ def test_list_all_entities_supports_campaign_and_type_filters(
 
         db_session.add_all(
             [
-                Entity(campaign_id=test_campaign.id, type="npc", name="Magistrate Ilya"),
+                Entity(campaign_id=test_campaign.id, type="person", name="Magistrate Ilya"),
                 Entity(campaign_id=test_campaign.id, type="location", name="Broken Observatory"),
-                Entity(campaign_id=second_campaign.id, type="npc", name="Varkesh"),
+                Entity(campaign_id=second_campaign.id, type="person", name="Varkesh"),
             ]
         )
         db_session.commit()
@@ -111,7 +111,7 @@ def test_list_all_entities_supports_campaign_and_type_filters(
         "/api/entities",
         params={
             "campaign_id": str(test_campaign.id),
-            "type": "npc",
+            "type": "person",
         },
     )
 
@@ -127,7 +127,7 @@ def test_list_campaign_entities_supports_type_filter(
     with db_session_factory() as db_session:
         db_session.add_all(
             [
-                Entity(campaign_id=test_campaign.id, type="npc", name="Magistrate Ilya"),
+                Entity(campaign_id=test_campaign.id, type="person", name="Magistrate Ilya"),
                 Entity(campaign_id=test_campaign.id, type="location", name="Broken Observatory"),
             ]
         )
@@ -136,7 +136,7 @@ def test_list_campaign_entities_supports_type_filter(
     response = api_request(
         "GET",
         f"/api/campaigns/{test_campaign.id}/entities",
-        params={"type": "npc"},
+        params={"type": "person"},
     )
 
     assert response.status_code == 200
@@ -151,7 +151,7 @@ def test_get_update_and_delete_entity_flow(
     with db_session_factory() as db_session:
         stored_entity = Entity(
             campaign_id=test_campaign.id,
-            type="npc",
+            type="person",
             name="Magistrate Ilya",
             summary="Before update",
         )
@@ -172,7 +172,7 @@ def test_get_update_and_delete_entity_flow(
         "PATCH",
         f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
         json={
-            "type": "faction",
+            "type": "organization",
             "name": "Ilya",
             "summary": "After update",
             "metadata": {"rank": "magistrate"},
@@ -180,7 +180,7 @@ def test_get_update_and_delete_entity_flow(
     )
 
     assert update_response.status_code == 200
-    assert update_response.json()["type"] == "faction"
+    assert update_response.json()["type"] == "organization"
     assert update_response.json()["name"] == "Ilya"
     assert update_response.json()["summary"] == "After update"
     assert update_response.json()["metadata"] == {"rank": "magistrate"}
@@ -211,7 +211,7 @@ def test_get_entity_returns_not_found_for_campaign_mismatch(
 
         stored_entity = Entity(
             campaign_id=test_campaign.id,
-            type="npc",
+            type="person",
             name="Magistrate Ilya",
         )
         db_session.add(stored_entity)
@@ -237,7 +237,7 @@ def test_update_entity_returns_422_for_null_name(
     with db_session_factory() as db_session:
         stored_entity = Entity(
             campaign_id=test_campaign.id,
-            type="npc",
+            type="person",
             name="Magistrate Ilya",
         )
         db_session.add(stored_entity)

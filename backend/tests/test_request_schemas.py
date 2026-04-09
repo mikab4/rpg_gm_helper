@@ -20,7 +20,7 @@ def test_campaign_create_forbids_unknown_fields() -> None:
 def test_entity_create_forbids_unknown_fields() -> None:
     with pytest.raises(ValidationError):
         EntityCreate(
-            type="npc",
+            type="person",
             name="Magistrate Ilya",
             rogue="x",
         )
@@ -29,12 +29,12 @@ def test_entity_create_forbids_unknown_fields() -> None:
 @pytest.mark.parametrize(
     ("campaign_name", "entity_type", "entity_name"),
     [
-        ("", "npc", "Magistrate Ilya"),
-        ("   ", "npc", "Magistrate Ilya"),
+        ("", "person", "Magistrate Ilya"),
+        ("   ", "person", "Magistrate Ilya"),
         ("Iron Vale", "", "Magistrate Ilya"),
         ("Iron Vale", "   ", "Magistrate Ilya"),
-        ("Iron Vale", "npc", ""),
-        ("Iron Vale", "npc", "   "),
+        ("Iron Vale", "person", ""),
+        ("Iron Vale", "person", "   "),
     ],
 )
 def test_required_business_strings_reject_blank_values(
@@ -46,7 +46,7 @@ def test_required_business_strings_reject_blank_values(
         with pytest.raises(ValidationError):
             CampaignCreate(owner_id=uuid4(), name=campaign_name)
 
-    if entity_type != "npc" or entity_name != "Magistrate Ilya":
+    if entity_type != "person" or entity_name != "Magistrate Ilya":
         with pytest.raises(ValidationError):
             EntityCreate(type=entity_type, name=entity_name)
 
@@ -58,14 +58,14 @@ def test_request_models_trim_non_blank_strings() -> None:
         description="  Frontier survival  ",
     )
     created_entity = EntityCreate(
-        type="  NPC  ",
+        type="  person  ",
         name="  Magistrate Ilya  ",
         summary="  A city official with a hidden agenda.  ",
     )
 
     assert created_campaign.name == "Iron Vale"
     assert created_campaign.description == "Frontier survival"
-    assert created_entity.type == "npc"
+    assert created_entity.type == "person"
     assert created_entity.name == "Magistrate Ilya"
     assert created_entity.summary == "A city official with a hidden agenda."
 
@@ -83,7 +83,7 @@ def test_optional_free_text_fields_reject_blank_strings() -> None:
 
     with pytest.raises(ValidationError):
         EntityCreate(
-            type="NPC",
+            type="person",
             name="Magistrate Ilya",
             summary="   ",
         )
@@ -124,7 +124,7 @@ def test_update_models_reject_empty_payloads() -> None:
         EntityUpdate()
 
 
-@pytest.mark.parametrize("invalid_entity_type", ["Character", "Settlement", ""])
+@pytest.mark.parametrize("invalid_entity_type", ["npc", "artifact", ""])
 def test_entity_request_models_reject_unknown_entity_types(invalid_entity_type: str) -> None:
     with pytest.raises(ValidationError):
         EntityCreate(type=invalid_entity_type, name="Magistrate Ilya")

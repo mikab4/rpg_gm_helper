@@ -34,6 +34,7 @@ EXPECTED_TABLES = {
     "extraction_candidates",
     "entities",
     "entity_relationships",
+    "relationship_type_definitions",
 }
 
 
@@ -57,6 +58,12 @@ def test_alembic_upgrade_head_creates_expected_tables(
 
         inspector = inspect(engine)
         assert EXPECTED_TABLES.issubset(set(inspector.get_table_names()))
+        relationship_columns = {
+            column["name"] for column in inspector.get_columns("entity_relationships")
+        }
+        assert {"lifecycle_status", "visibility_status", "certainty_status"}.issubset(
+            relationship_columns
+        )
     finally:
         if upgraded:
             command.downgrade(alembic_config, "base")

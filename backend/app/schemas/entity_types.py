@@ -3,12 +3,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 ALLOWED_ENTITY_TYPES = {
-    "npc",
+    "person",
     "location",
-    "artifact",
-    "faction",
+    "organization",
+    "item",
     "event",
-    "lore",
+    "deity",
+    "other",
 }
 
 

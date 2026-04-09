@@ -81,6 +81,24 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     relationship_type: Mapped[str] = mapped_column(Text, nullable=False)
+    lifecycle_status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="current",
+        server_default=text("'current'"),
+    )
+    visibility_status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="public",
+        server_default=text("'public'"),
+    )
+    certainty_status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="confirmed",
+        server_default=text("'confirmed'"),
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     source_document_id: Mapped[UUID | None] = mapped_column(

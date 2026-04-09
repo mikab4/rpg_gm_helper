@@ -20,6 +20,7 @@ from app.models import (
     SessionNote,
     SourceDocument,
 )
+from app.models.relationship_type_definition import RelationshipTypeDefinition
 from tests.pg_test_support import (
     build_alembic_config,
     create_test_engine,
@@ -81,13 +82,13 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
         campaign=campaign,
         extraction_job=extraction_job,
         candidate_type="entity",
-        payload={"type": "npc", "name": "Magistrate Ilya"},
+        payload={"type": "person", "name": "Magistrate Ilya"},
         status="pending",
         provenance_excerpt="met Magistrate Ilya in the observatory ruins",
     )
     entity_a = Entity(
         campaign=campaign,
-        type="npc",
+        type="person",
         name="Magistrate Ilya",
         summary="A city official with a hidden agenda.",
         metadata_={"faction": "City Watch"},
@@ -105,6 +106,9 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
         source_entity=entity_a,
         target_entity=entity_b,
         relationship_type="investigates",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
         notes="Ilya was seen inspecting the ruins.",
         confidence=0.8,
         source_document=source_document,
@@ -146,6 +150,9 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
     assert stored_relationship is not None
     assert stored_relationship.source_entity_id == entity_a.id
     assert stored_relationship.target_entity_id == entity_b.id
+    assert stored_relationship.lifecycle_status == "current"
+    assert stored_relationship.visibility_status == "public"
+    assert stored_relationship.certainty_status == "confirmed"
 
 
 def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
@@ -171,9 +178,19 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     )
     entity = Entity(
         campaign=campaign,
-        type="npc",
+        type="person",
         name="Magistrate Ilya",
         source_document=source_document,
+    )
+    relationship_type_definition = RelationshipTypeDefinition(
+        campaign=campaign,
+        key="bodyguard_of",
+        label="bodyguard of",
+        family="social",
+        reverse_label="guarded by",
+        is_symmetric=False,
+        allowed_source_types=["person"],
+        allowed_target_types=["person"],
     )
     relationship = Relationship(
         campaign=campaign,
@@ -184,7 +201,16 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     )
 
     session.add_all(
-        [owner, campaign, source_document, extraction_job, candidate, entity, relationship]
+        [
+            owner,
+            campaign,
+            source_document,
+            extraction_job,
+            candidate,
+            entity,
+            relationship_type_definition,
+            relationship,
+        ]
     )
     session.commit()
 
@@ -192,6 +218,10 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     stored_candidate = session.get(ExtractionCandidate, candidate.id)
     stored_entity = session.get(Entity, entity.id)
     stored_relationship = session.get(Relationship, relationship.id)
+    stored_relationship_type_definition = session.get(
+        RelationshipTypeDefinition,
+        relationship_type_definition.id,
+    )
 
     assert stored_document is not None
     assert stored_document.metadata_ == {}
@@ -200,8 +230,14 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     assert stored_entity is not None
     assert stored_entity.metadata_ == {}
     assert stored_entity.provenance_data == {}
+    assert stored_relationship_type_definition is not None
+    assert stored_relationship_type_definition.allowed_source_types == ["person"]
+    assert stored_relationship_type_definition.allowed_target_types == ["person"]
     assert stored_relationship is not None
     assert stored_relationship.provenance_data == {}
+    assert stored_relationship.lifecycle_status == "current"
+    assert stored_relationship.visibility_status == "public"
+    assert stored_relationship.certainty_status == "confirmed"
 
 
 def test_updated_at_changes_on_orm_update(session: Session) -> None:
@@ -228,7 +264,7 @@ def test_updated_at_changes_on_orm_update(session: Session) -> None:
 def test_relationship_confidence_must_be_between_zero_and_one(session: Session) -> None:
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
-    entity_a = Entity(campaign=campaign, type="npc", name="Magistrate Ilya")
+    entity_a = Entity(campaign=campaign, type="person", name="Magistrate Ilya")
     entity_b = Entity(campaign=campaign, type="location", name="Broken Observatory")
 
     session.add_all([owner, campaign, entity_a, entity_b])

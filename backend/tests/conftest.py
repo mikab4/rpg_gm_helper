@@ -59,12 +59,13 @@ def sync_api_test_runtime_shim(
 @contextmanager
 def patched_jsonb_defaults() -> Iterator[None]:
     patched_columns: list[tuple[Any, Any]] = []
+    jsonb_defaults = {"'{}'::jsonb", "'[]'::jsonb"}
     for metadata_table in Base.metadata.tables.values():
         for table_column in metadata_table.columns:
             column_server_default = table_column.server_default
             if column_server_default is None:
                 continue
-            if getattr(column_server_default.arg, "text", None) != "'{}'::jsonb":
+            if getattr(column_server_default.arg, "text", None) not in jsonb_defaults:
                 continue
             patched_columns.append((table_column, column_server_default))
             table_column.server_default = None

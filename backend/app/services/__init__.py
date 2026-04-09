@@ -1,4 +1,10 @@
-from app.services import campaign_service, entity_service, owner_service
+from app.services import (
+    campaign_service,
+    entity_service,
+    owner_service,
+    relationship_service,
+    relationship_type_service,
+)
 from app.services.errors import ConflictError, NotFoundError
 
 __all__ = [
@@ -7,4 +13,6 @@ __all__ = [
     "campaign_service",
     "entity_service",
     "owner_service",
+    "relationship_service",
+    "relationship_type_service",
 ]

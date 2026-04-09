@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.extraction import ExtractionCandidate, ExtractionJob
     from app.models.owner import Owner
     from app.models.relationship import Relationship
+    from app.models.relationship_type_definition import RelationshipTypeDefinition
     from app.models.session_note import SessionNote
     from app.models.source_document import SourceDocument
 
@@ -56,6 +57,11 @@ class Campaign(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         passive_deletes="all",
     )
     relationships: Mapped[list["Relationship"]] = relationship(
+        back_populates="campaign",
+        lazy="selectin",
+        passive_deletes="all",
+    )
+    relationship_type_definitions: Mapped[list["RelationshipTypeDefinition"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
         passive_deletes="all",
