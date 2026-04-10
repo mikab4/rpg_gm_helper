@@ -5,7 +5,21 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import CampaignCreate, CampaignUpdate, EntityCreate, EntityUpdate
+from app.enums import (
+    EntityType,
+    RelationshipCertaintyStatus,
+    RelationshipFamily,
+    RelationshipLifecycleStatus,
+    RelationshipVisibilityStatus,
+)
+from app.schemas import (
+    CampaignCreate,
+    CampaignUpdate,
+    EntityCreate,
+    EntityUpdate,
+    RelationshipCreate,
+    RelationshipTypeCreate,
+)
 
 
 def test_campaign_create_forbids_unknown_fields() -> None:
@@ -65,9 +79,35 @@ def test_request_models_trim_non_blank_strings() -> None:
 
     assert created_campaign.name == "Iron Vale"
     assert created_campaign.description == "Frontier survival"
-    assert created_entity.type == "person"
+    assert created_entity.type is EntityType.PERSON
     assert created_entity.name == "Magistrate Ilya"
     assert created_entity.summary == "A city official with a hidden agenda."
+
+
+def test_relationship_request_models_use_str_enums() -> None:
+    relationship_type_create = RelationshipTypeCreate(
+        label="bodyguard of",
+        family=" social ",
+        reverse_label="guarded by",
+        is_symmetric=False,
+        allowed_source_types=[" person "],
+        allowed_target_types=["person"],
+    )
+    relationship_create = RelationshipCreate(
+        source_entity_id=uuid4(),
+        target_entity_id=uuid4(),
+        relationship_type=" spouse_of ",
+        lifecycle_status=" current ",
+        visibility_status=" secret ",
+        certainty_status=" rumored ",
+    )
+
+    assert relationship_type_create.family is RelationshipFamily.SOCIAL
+    assert relationship_type_create.allowed_source_types == [EntityType.PERSON]
+    assert relationship_type_create.allowed_target_types == [EntityType.PERSON]
+    assert relationship_create.lifecycle_status is RelationshipLifecycleStatus.CURRENT
+    assert relationship_create.visibility_status is RelationshipVisibilityStatus.SECRET
+    assert relationship_create.certainty_status is RelationshipCertaintyStatus.RUMORED
 
 
 def test_optional_free_text_fields_reject_blank_strings() -> None:

@@ -3,14 +3,23 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
-from app.schemas.relationship_types import validate_status_value
+from app.enums import (
+    RelationshipCertaintyStatus,
+    RelationshipFamily,
+    RelationshipLifecycleStatus,
+    RelationshipVisibilityStatus,
+    normalize_str_enum_value,
+)
 from app.schemas.types import NonBlankString, OptionalNonBlankString
-
-ALLOWED_LIFECYCLE_STATUSES = {"current", "former"}
-ALLOWED_VISIBILITY_STATUSES = {"public", "secret"}
-ALLOWED_CERTAINTY_STATUSES = {"confirmed", "rumored"}
 
 
 class RelationshipCreate(BaseModel):
@@ -19,9 +28,9 @@ class RelationshipCreate(BaseModel):
     source_entity_id: UUID
     target_entity_id: UUID
     relationship_type: NonBlankString
-    lifecycle_status: NonBlankString
-    visibility_status: NonBlankString
-    certainty_status: NonBlankString
+    lifecycle_status: RelationshipLifecycleStatus
+    visibility_status: RelationshipVisibilityStatus
+    certainty_status: RelationshipCertaintyStatus
     notes: OptionalNonBlankString = None
     confidence: float | None = None
     source_document_id: UUID | None = None
@@ -33,31 +42,37 @@ class RelationshipCreate(BaseModel):
     def normalize_relationship_type(cls, relationship_type: str) -> str:
         return relationship_type.strip().lower()
 
-    @field_validator("lifecycle_status")
+    @field_validator("lifecycle_status", mode="before")
     @classmethod
-    def validate_lifecycle_status(cls, lifecycle_status: str) -> str:
-        return validate_status_value(
+    def validate_lifecycle_status(
+        cls,
+        lifecycle_status: str,
+    ) -> RelationshipLifecycleStatus:
+        return normalize_str_enum_value(
+            RelationshipLifecycleStatus,
             lifecycle_status,
-            allowed_values=ALLOWED_LIFECYCLE_STATUSES,
-            field_name="Lifecycle status",
         )
 
-    @field_validator("visibility_status")
+    @field_validator("visibility_status", mode="before")
     @classmethod
-    def validate_visibility_status(cls, visibility_status: str) -> str:
-        return validate_status_value(
+    def validate_visibility_status(
+        cls,
+        visibility_status: str,
+    ) -> RelationshipVisibilityStatus:
+        return normalize_str_enum_value(
+            RelationshipVisibilityStatus,
             visibility_status,
-            allowed_values=ALLOWED_VISIBILITY_STATUSES,
-            field_name="Visibility status",
         )
 
-    @field_validator("certainty_status")
+    @field_validator("certainty_status", mode="before")
     @classmethod
-    def validate_certainty_status(cls, certainty_status: str) -> str:
-        return validate_status_value(
+    def validate_certainty_status(
+        cls,
+        certainty_status: str,
+    ) -> RelationshipCertaintyStatus:
+        return normalize_str_enum_value(
+            RelationshipCertaintyStatus,
             certainty_status,
-            allowed_values=ALLOWED_CERTAINTY_STATUSES,
-            field_name="Certainty status",
         )
 
     @field_validator("confidence")
@@ -74,9 +89,9 @@ class RelationshipUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     relationship_type: OptionalNonBlankString = None
-    lifecycle_status: OptionalNonBlankString = None
-    visibility_status: OptionalNonBlankString = None
-    certainty_status: OptionalNonBlankString = None
+    lifecycle_status: RelationshipLifecycleStatus | None = None
+    visibility_status: RelationshipVisibilityStatus | None = None
+    certainty_status: RelationshipCertaintyStatus | None = None
     notes: OptionalNonBlankString = None
     confidence: float | None = None
     source_document_id: UUID | None = None
@@ -90,37 +105,43 @@ class RelationshipUpdate(BaseModel):
             return relationship_type
         return relationship_type.strip().lower()
 
-    @field_validator("lifecycle_status")
+    @field_validator("lifecycle_status", mode="before")
     @classmethod
-    def validate_lifecycle_status(cls, lifecycle_status: str | None) -> str | None:
+    def validate_lifecycle_status(
+        cls,
+        lifecycle_status: str | None,
+    ) -> RelationshipLifecycleStatus | None:
         if lifecycle_status is None:
             return lifecycle_status
-        return validate_status_value(
+        return normalize_str_enum_value(
+            RelationshipLifecycleStatus,
             lifecycle_status,
-            allowed_values=ALLOWED_LIFECYCLE_STATUSES,
-            field_name="Lifecycle status",
         )
 
-    @field_validator("visibility_status")
+    @field_validator("visibility_status", mode="before")
     @classmethod
-    def validate_visibility_status(cls, visibility_status: str | None) -> str | None:
+    def validate_visibility_status(
+        cls,
+        visibility_status: str | None,
+    ) -> RelationshipVisibilityStatus | None:
         if visibility_status is None:
             return visibility_status
-        return validate_status_value(
+        return normalize_str_enum_value(
+            RelationshipVisibilityStatus,
             visibility_status,
-            allowed_values=ALLOWED_VISIBILITY_STATUSES,
-            field_name="Visibility status",
         )
 
-    @field_validator("certainty_status")
+    @field_validator("certainty_status", mode="before")
     @classmethod
-    def validate_certainty_status(cls, certainty_status: str | None) -> str | None:
+    def validate_certainty_status(
+        cls,
+        certainty_status: str | None,
+    ) -> RelationshipCertaintyStatus | None:
         if certainty_status is None:
             return certainty_status
-        return validate_status_value(
+        return normalize_str_enum_value(
+            RelationshipCertaintyStatus,
             certainty_status,
-            allowed_values=ALLOWED_CERTAINTY_STATUSES,
-            field_name="Certainty status",
         )
 
     @field_validator("confidence")
@@ -147,13 +168,13 @@ class RelationshipResponse(BaseModel):
     source_entity_id: UUID
     target_entity_id: UUID
     relationship_type: str
-    relationship_family: str
+    relationship_family: RelationshipFamily
     forward_label: str
     reverse_label: str
     is_symmetric: bool
-    lifecycle_status: str
-    visibility_status: str
-    certainty_status: str
+    lifecycle_status: RelationshipLifecycleStatus
+    visibility_status: RelationshipVisibilityStatus
+    certainty_status: RelationshipCertaintyStatus
     notes: str | None
     confidence: float | None
     source_document_id: UUID | None
@@ -161,3 +182,11 @@ class RelationshipResponse(BaseModel):
     provenance_data: dict[str, object]
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("relationship_family")
+    def serialize_relationship_family(self, relationship_family: RelationshipFamily) -> str:
+        return relationship_family.value
+
+    @field_serializer("lifecycle_status", "visibility_status", "certainty_status")
+    def serialize_relationship_status(self, status_value) -> str:
+        return status_value.value

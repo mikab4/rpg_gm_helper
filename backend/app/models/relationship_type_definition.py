@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     ForeignKey,
     Index,
     Text,
@@ -27,6 +28,21 @@ class RelationshipTypeDefinition(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "campaign_id",
             "key",
             name="uq_relationship_type_definitions_campaign_key",
+        ),
+        CheckConstraint(
+            """
+            (
+                is_symmetric = true
+                AND reverse_label IS NULL
+            )
+            OR
+            (
+                is_symmetric = false
+                AND reverse_label IS NOT NULL
+                AND btrim(reverse_label) <> ''
+            )
+            """,
+            name="ck_relationship_type_definitions_direction_labels",
         ),
         Index(
             "ix_relationship_type_definitions_campaign_id",

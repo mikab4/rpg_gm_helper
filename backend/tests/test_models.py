@@ -33,6 +33,16 @@ def test_relationship_model_uses_entity_relationships_table() -> None:
     assert Relationship.__tablename__ == "entity_relationships"
 
 
+def test_relationship_type_definition_declares_direction_check_constraint() -> None:
+    constraint_names = {
+        constraint.name
+        for constraint in RelationshipTypeDefinition.__table__.constraints
+        if constraint.name is not None
+    }
+
+    assert "ck_relationship_type_definitions_direction_labels" in constraint_names
+
+
 @pytest.fixture
 def session(monkeypatch: pytest.MonkeyPatch) -> Session:
     settings = load_test_settings()
@@ -238,6 +248,30 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     assert stored_relationship.lifecycle_status == "current"
     assert stored_relationship.visibility_status == "public"
     assert stored_relationship.certainty_status == "confirmed"
+
+
+def test_relationship_type_definition_requires_reverse_label_when_not_symmetric(
+    session: Session,
+) -> None:
+    owner = Owner(email="gm@example.com")
+    campaign = Campaign(owner=owner, name="Shadows of Glass")
+    relationship_type_definition = RelationshipTypeDefinition(
+        campaign=campaign,
+        key="bodyguard_of",
+        label="bodyguard of",
+        family="social",
+        reverse_label=None,
+        is_symmetric=False,
+        allowed_source_types=["person"],
+        allowed_target_types=["person"],
+    )
+
+    session.add_all([owner, campaign, relationship_type_definition])
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+    session.rollback()
 
 
 def test_updated_at_changes_on_orm_update(session: Session) -> None:

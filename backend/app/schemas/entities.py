@@ -7,10 +7,12 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    field_serializer,
     field_validator,
     model_validator,
 )
 
+from app.enums import EntityType
 from app.schemas.entity_types import validate_entity_type
 from app.schemas.types import NonBlankString, OptionalNonBlankString
 
@@ -18,28 +20,28 @@ from app.schemas.types import NonBlankString, OptionalNonBlankString
 class EntityCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: NonBlankString
+    type: EntityType
     name: NonBlankString
     summary: OptionalNonBlankString = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
-    @field_validator("type")
+    @field_validator("type", mode="before")
     @classmethod
-    def validate_known_entity_type(cls, entity_type: str) -> str:
+    def validate_known_entity_type(cls, entity_type: str) -> EntityType:
         return validate_entity_type(entity_type)
 
 
 class EntityUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: OptionalNonBlankString = None
+    type: EntityType | None = None
     name: OptionalNonBlankString = None
     summary: OptionalNonBlankString = None
     metadata: dict[str, object] | None = None
 
-    @field_validator("type")
+    @field_validator("type", mode="before")
     @classmethod
-    def validate_known_entity_type(cls, entity_type: str | None) -> str | None:
+    def validate_known_entity_type(cls, entity_type: str | None) -> EntityType | None:
         if entity_type is None:
             return entity_type
 
@@ -81,7 +83,7 @@ class EntityResponse(BaseModel):
 
     id: UUID
     campaign_id: UUID
-    type: str
+    type: EntityType
     name: str
     summary: str | None
     metadata: dict[str, object] = Field(
@@ -93,3 +95,7 @@ class EntityResponse(BaseModel):
     provenance_data: dict[str, object]
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("type")
+    def serialize_entity_type(self, entity_type: EntityType) -> str:
+        return entity_type.value

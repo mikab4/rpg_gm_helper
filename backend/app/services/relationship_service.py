@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.enums import EntityType, RelationshipFamily, normalize_str_enum_value
 from app.models import Campaign, Entity, Relationship, SourceDocument
 from app.schemas import RelationshipCreate, RelationshipUpdate
 from app.services.errors import ConflictError, NotFoundError
@@ -97,7 +98,7 @@ def list_relationships(
     if relationship_family is None:
         return listed_relationships
 
-    normalized_family = relationship_family.strip().lower()
+    normalized_family = normalize_str_enum_value(RelationshipFamily, relationship_family)
     return [
         listed_relationship
         for listed_relationship in listed_relationships
@@ -301,9 +302,11 @@ def _validate_type_pair(
     target_entity_type: str,
     relationship_descriptor,
 ) -> None:
-    if source_entity_type not in relationship_descriptor.allowed_source_types:
+    normalized_source_entity_type = normalize_str_enum_value(EntityType, source_entity_type)
+    normalized_target_entity_type = normalize_str_enum_value(EntityType, target_entity_type)
+    if normalized_source_entity_type not in relationship_descriptor.allowed_source_types:
         raise ValueError("Relationship type is not valid for the source and target entity types.")
-    if target_entity_type not in relationship_descriptor.allowed_target_types:
+    if normalized_target_entity_type not in relationship_descriptor.allowed_target_types:
         raise ValueError("Relationship type is not valid for the source and target entity types.")
 
 

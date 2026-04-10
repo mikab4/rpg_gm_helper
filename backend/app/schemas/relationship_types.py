@@ -4,22 +4,11 @@ import re
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator
 
-from app.schemas.entity_types import validate_entity_type, validate_entity_types
+from app.enums import EntityType, RelationshipFamily, normalize_str_enum_value
+from app.schemas.entity_types import validate_entity_type
 from app.schemas.types import NonBlankString, OptionalNonBlankString
-
-ALLOWED_RELATIONSHIP_FAMILIES = {
-    "family",
-    "romance",
-    "social",
-    "organization",
-    "political",
-    "location",
-    "conflict",
-    "influence",
-    "event",
-}
 
 _relationship_key_pattern = re.compile(r"[^a-z0-9]+")
 
@@ -32,46 +21,28 @@ def normalize_relationship_type_key(raw_label: str) -> str:
     return normalized_key
 
 
-def validate_relationship_family(relationship_family: str) -> str:
-    normalized_family = relationship_family.strip().lower()
-    if normalized_family not in ALLOWED_RELATIONSHIP_FAMILIES:
-        allowed_values = ", ".join(sorted(ALLOWED_RELATIONSHIP_FAMILIES))
-        raise ValueError(f"Relationship family must be one of: {allowed_values}.")
-    return normalized_family
-
-
-def validate_status_value(
-    raw_status_value: str,
-    *,
-    allowed_values: set[str],
-    field_name: str,
-) -> str:
-    normalized_status_value = raw_status_value.strip().lower()
-    if normalized_status_value not in allowed_values:
-        joined_allowed_values = ", ".join(sorted(allowed_values))
-        raise ValueError(f"{field_name} must be one of: {joined_allowed_values}.")
-    return normalized_status_value
+def validate_relationship_family(relationship_family: str) -> RelationshipFamily:
+    return normalize_str_enum_value(RelationshipFamily, relationship_family)
 
 
 class RelationshipTypeCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     label: NonBlankString
-    family: NonBlankString
+    family: RelationshipFamily
     reverse_label: OptionalNonBlankString = None
     is_symmetric: bool
-    allowed_source_types: list[str]
-    allowed_target_types: list[str]
+    allowed_source_types: list[EntityType]
+    allowed_target_types: list[EntityType]
 
-    @field_validator("family")
+    @field_validator("family", mode="before")
     @classmethod
-    def validate_known_family(cls, relationship_family: str) -> str:
+    def validate_known_family(cls, relationship_family: str) -> RelationshipFamily:
         return validate_relationship_family(relationship_family)
 
-    @field_validator("allowed_source_types", "allowed_target_types")
+    @field_validator("allowed_source_types", "allowed_target_types", mode="before")
     @classmethod
-    def validate_allowed_entity_types(cls, entity_types: list[str]) -> list[str]:
-        validate_entity_types(entity_types)
+    def validate_allowed_entity_types(cls, entity_types: list[str]) -> list[EntityType]:
         return [validate_entity_type(entity_type) for entity_type in entity_types]
 
     @model_validator(mode="after")
@@ -87,25 +58,30 @@ class RelationshipTypeUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     label: OptionalNonBlankString = None
-    family: OptionalNonBlankString = None
+    family: RelationshipFamily | None = None
     reverse_label: OptionalNonBlankString = None
     is_symmetric: bool | None = None
-    allowed_source_types: list[str] | None = None
-    allowed_target_types: list[str] | None = None
+    allowed_source_types: list[EntityType] | None = None
+    allowed_target_types: list[EntityType] | None = None
 
-    @field_validator("family")
+    @field_validator("family", mode="before")
     @classmethod
-    def validate_known_family(cls, relationship_family: str | None) -> str | None:
+    def validate_known_family(
+        cls,
+        relationship_family: str | None,
+    ) -> RelationshipFamily | None:
         if relationship_family is None:
             return relationship_family
         return validate_relationship_family(relationship_family)
 
-    @field_validator("allowed_source_types", "allowed_target_types")
+    @field_validator("allowed_source_types", "allowed_target_types", mode="before")
     @classmethod
-    def validate_allowed_entity_types(cls, entity_types: list[str] | None) -> list[str] | None:
+    def validate_allowed_entity_types(
+        cls,
+        entity_types: list[str] | None,
+    ) -> list[EntityType] | None:
         if entity_types is None:
             return entity_types
-        validate_entity_types(entity_types)
         return [validate_entity_type(entity_type) for entity_type in entity_types]
 
     @model_validator(mode="after")
@@ -122,11 +98,19 @@ class RelationshipTypeResponse(BaseModel):
     campaign_id: UUID | None = None
     key: str
     label: str
-    family: str
+    family: RelationshipFamily
     reverse_label: str | None
     is_symmetric: bool
-    allowed_source_types: list[str]
-    allowed_target_types: list[str]
+    allowed_source_types: list[EntityType]
+    allowed_target_types: list[EntityType]
     is_custom: bool
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @field_serializer("family")
+    def serialize_family(self, relationship_family: RelationshipFamily) -> str:
+        return relationship_family.value
+
+    @field_serializer("allowed_source_types", "allowed_target_types")
+    def serialize_allowed_entity_types(self, entity_types: list[EntityType]) -> list[str]:
+        return [entity_type.value for entity_type in entity_types]

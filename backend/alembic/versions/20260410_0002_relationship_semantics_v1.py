@@ -53,6 +53,21 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.CheckConstraint(
+            """
+            (
+                is_symmetric = true
+                AND reverse_label IS NULL
+            )
+            OR
+            (
+                is_symmetric = false
+                AND reverse_label IS NOT NULL
+                AND btrim(reverse_label) <> ''
+            )
+            """,
+            name="ck_relationship_type_definitions_direction_labels",
+        ),
         sa.UniqueConstraint(
             "campaign_id",
             "key",

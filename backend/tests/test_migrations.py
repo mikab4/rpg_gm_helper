@@ -15,6 +15,7 @@ from app.models import (
     Owner,
     Relationship,
 )
+from app.models.relationship_type_definition import RelationshipTypeDefinition
 from app.models.session_note import SessionNote
 from app.models.source_document import SourceDocument
 from tests.pg_test_support import (
@@ -173,6 +174,52 @@ def test_alembic_migration_rejects_cross_campaign_references(
                 relationship_type="knows",
             )
             session.add(invalid_relationship)
+            with pytest.raises(IntegrityError):
+                session.commit()
+            session.rollback()
+    finally:
+        if upgraded:
+            command.downgrade(alembic_config, "base")
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+def test_alembic_migration_rejects_invalid_relationship_type_direction_labels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_test_settings()
+    engine = create_test_engine(settings)
+
+    reset_public_schema(engine)
+
+    monkeypatch.setenv("DATABASE_URL", settings.database_url)
+    get_settings.cache_clear()
+
+    alembic_config = build_alembic_config()
+    upgraded = False
+
+    try:
+        command.upgrade(alembic_config, "head")
+        upgraded = True
+
+        with Session(engine) as session:
+            owner = Owner(email="gm@example.com")
+            campaign = Campaign(owner=owner, name="Campaign A")
+            session.add_all([owner, campaign])
+            session.commit()
+
+            invalid_type = RelationshipTypeDefinition(
+                campaign=campaign,
+                key="bodyguard_of",
+                label="bodyguard of",
+                family="social",
+                reverse_label=None,
+                is_symmetric=False,
+                allowed_source_types=["person"],
+                allowed_target_types=["person"],
+            )
+            session.add(invalid_type)
+
             with pytest.raises(IntegrityError):
                 session.commit()
             session.rollback()
