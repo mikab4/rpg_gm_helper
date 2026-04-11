@@ -111,6 +111,69 @@ def test_update_custom_relationship_type_rejects_semantic_changes_when_type_is_i
     assert response.json() == {"detail": "Semantic fields cannot change after a type is in use."}
 
 
+def test_update_custom_relationship_type_rejects_payload_with_symmetric_and_reverse_label(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        db_session.add(
+            RelationshipTypeDefinition(
+                id=uuid4(),
+                campaign_id=test_campaign.id,
+                key="bodyguard_of",
+                label="bodyguard of",
+                family="social",
+                reverse_label="guarded by",
+                is_symmetric=False,
+                allowed_source_types=["person"],
+                allowed_target_types=["person"],
+            )
+        )
+        db_session.commit()
+
+    response = api_request(
+        "PATCH",
+        f"/api/campaigns/{test_campaign.id}/relationship-types/bodyguard_of",
+        json={"is_symmetric": True, "reverse_label": "guarded by"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_custom_relationship_type_rejects_reverse_label_for_existing_symmetric_type(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        db_session.add(
+            RelationshipTypeDefinition(
+                id=uuid4(),
+                campaign_id=test_campaign.id,
+                key="sibling_oath",
+                label="sibling oath",
+                family="social",
+                reverse_label=None,
+                is_symmetric=True,
+                allowed_source_types=["person"],
+                allowed_target_types=["person"],
+            )
+        )
+        db_session.commit()
+
+    response = api_request(
+        "PATCH",
+        f"/api/campaigns/{test_campaign.id}/relationship-types/sibling_oath",
+        json={"reverse_label": "bound by oath"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "Symmetric relationship types cannot define a reverse label."
+    }
+
+
 def test_delete_custom_relationship_type_rejects_used_type(
     api_request,
     db_session_factory,

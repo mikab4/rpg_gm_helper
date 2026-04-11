@@ -417,18 +417,13 @@ BUILT_IN_RELATIONSHIP_TYPES: dict[str, RelationshipTypeDescriptor] = {
     ),
 }
 
-
-def normalize_relationship_type(relationship_type_key: str) -> str:
-    return normalize_relationship_type_key(relationship_type_key.replace("_", " "))
-
-
 def build_descriptor_from_custom_type(
     custom_type_definition: RelationshipTypeDefinition,
 ) -> RelationshipTypeDescriptor:
     reverse_label = (
         custom_type_definition.label
         if custom_type_definition.is_symmetric
-        else custom_type_definition.reverse_label or custom_type_definition.label
+        else custom_type_definition.reverse_label
     )
     return RelationshipTypeDescriptor(
         key=custom_type_definition.key,
@@ -479,7 +474,7 @@ def get_relationship_type_descriptor(
     relationship_type_key: str,
     campaign_id: UUID | None = None,
 ) -> RelationshipTypeDescriptor | None:
-    normalized_type_key = normalize_relationship_type(relationship_type_key)
+    normalized_type_key = normalize_relationship_type_key(relationship_type_key)
     built_in_descriptor = BUILT_IN_RELATIONSHIP_TYPES.get(normalized_type_key)
     if built_in_descriptor is not None:
         return built_in_descriptor

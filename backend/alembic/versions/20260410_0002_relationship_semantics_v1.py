@@ -63,7 +63,7 @@ def upgrade() -> None:
             (
                 is_symmetric = false
                 AND reverse_label IS NOT NULL
-                AND btrim(reverse_label) <> ''
+                AND trim(reverse_label) <> ''
             )
             """,
             name="ck_relationship_type_definitions_direction_labels",

@@ -12,6 +12,7 @@ from app.schemas.relationship_types import normalize_relationship_type_key
 from app.services.errors import ConflictError, NotFoundError
 from app.services.relationship_catalog import (
     BUILT_IN_RELATIONSHIP_TYPES,
+    RelationshipTypeDescriptor,
     get_relationship_type_descriptor,
     list_relationship_type_descriptors,
 )
@@ -21,7 +22,7 @@ def list_relationship_types(
     db_session: Session,
     *,
     campaign_id: UUID | None = None,
-):
+) -> list[RelationshipTypeDescriptor]:
     if campaign_id is not None and db_session.get(Campaign, campaign_id) is None:
         raise NotFoundError("Campaign not found.")
     return list_relationship_type_descriptors(db_session, campaign_id=campaign_id)
@@ -87,11 +88,18 @@ def update_relationship_type(
     ):
         raise ConflictError("Semantic fields cannot change after a type is in use.")
 
+    effective_is_symmetric = update_fields.get("is_symmetric", stored_type_definition.is_symmetric)
+    effective_reverse_label = update_fields.get(
+        "reverse_label",
+        stored_type_definition.reverse_label,
+    )
+    if effective_is_symmetric and effective_reverse_label is not None:
+        raise ValueError("Symmetric relationship types cannot define a reverse label.")
+    if not effective_is_symmetric and effective_reverse_label is None:
+        raise ValueError("Asymmetric relationship types must define a reverse label.")
+
     for field_name, field_value in update_fields.items():
         setattr(stored_type_definition, field_name, field_value)
-
-    if stored_type_definition.is_symmetric:
-        stored_type_definition.reverse_label = None
 
     db_session.commit()
     db_session.refresh(stored_type_definition)

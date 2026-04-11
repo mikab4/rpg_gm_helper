@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 from app.enums import EntityType, RelationshipFamily, normalize_str_enum_value
 from app.models import Campaign, Entity, Relationship, SourceDocument
 from app.schemas import RelationshipCreate, RelationshipUpdate
+from app.schemas.relationship_types import normalize_relationship_type_key
 from app.services.errors import ConflictError, NotFoundError
 from app.services.relationship_catalog import (
     get_relationship_type_descriptor,
-    normalize_relationship_type,
 )
 
 
@@ -90,7 +90,7 @@ def list_relationships(
     statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
     if relationship_type is not None:
         statement = statement.where(
-            Relationship.relationship_type == normalize_relationship_type(relationship_type)
+            Relationship.relationship_type == normalize_relationship_type_key(relationship_type)
         )
 
     statement = statement.order_by(Relationship.created_at.desc(), Relationship.id)

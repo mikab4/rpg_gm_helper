@@ -88,6 +88,8 @@ class RelationshipTypeUpdate(BaseModel):
     def validate_update_fields(self) -> "RelationshipTypeUpdate":
         if not self.model_fields_set:
             raise ValueError("At least one relationship type field must be provided.")
+        if self.is_symmetric is True and self.reverse_label is not None:
+            raise ValueError("Symmetric relationship types cannot define a reverse label.")
         return self
 
 
