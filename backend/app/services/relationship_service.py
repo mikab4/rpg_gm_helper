@@ -6,12 +6,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.enums import EntityType, RelationshipFamily, normalize_str_enum_value
-from app.models import Campaign, Entity, Relationship, SourceDocument
+from app.models import Entity, Relationship, SourceDocument
 from app.schemas import RelationshipCreate, RelationshipUpdate
-from app.schemas.relationship_types import normalize_relationship_type_key
+from app.services.campaign_lookup import ensure_campaign_exists
 from app.services.errors import ConflictError, NotFoundError
 from app.services.relationship_catalog import (
     get_relationship_type_descriptor,
+    list_relationship_type_descriptors_by_family,
 )
 
 
@@ -21,49 +22,31 @@ def create_relationship(
     campaign_id: UUID,
     relationship_create: RelationshipCreate,
 ) -> Relationship:
-    _ensure_campaign_exists(db_session, campaign_id)
-    source_entity = _get_campaign_entity(
+    ensure_campaign_exists(db_session, campaign_id)
+    source_entity, target_entity = _get_relationship_endpoints(
         db_session,
         campaign_id=campaign_id,
-        entity_id=relationship_create.source_entity_id,
-        not_found_message="Source entity not found.",
-    )
-    target_entity = _get_campaign_entity(
-        db_session,
-        campaign_id=campaign_id,
-        entity_id=relationship_create.target_entity_id,
-        not_found_message="Target entity not found.",
+        source_entity_id=relationship_create.source_entity_id,
+        target_entity_id=relationship_create.target_entity_id,
     )
     _validate_source_document(
         db_session,
         campaign_id=campaign_id,
         source_document_id=relationship_create.source_document_id,
     )
-
-    relationship_descriptor = _get_descriptor_or_raise(
+    prepared_relationship_type = _validate_and_resolve_relationship_type(
         db_session,
         campaign_id=campaign_id,
         relationship_type=relationship_create.relationship_type,
-    )
-    _validate_type_pair(
-        source_entity_type=source_entity.type,
-        target_entity_type=target_entity.type,
-        relationship_descriptor=relationship_descriptor,
-    )
-    _validate_duplicates(
-        db_session,
-        campaign_id=campaign_id,
-        relationship_type=relationship_descriptor.key,
-        source_entity_id=source_entity.id,
-        target_entity_id=target_entity.id,
-        is_symmetric=relationship_descriptor.is_symmetric,
+        source_entity=source_entity,
+        target_entity=target_entity,
     )
 
     created_relationship = Relationship(
         campaign_id=campaign_id,
         source_entity_id=source_entity.id,
         target_entity_id=target_entity.id,
-        relationship_type=relationship_descriptor.key,
+        relationship_type=prepared_relationship_type,
         lifecycle_status=relationship_create.lifecycle_status,
         visibility_status=relationship_create.visibility_status,
         certainty_status=relationship_create.certainty_status,
@@ -86,29 +69,37 @@ def list_relationships(
     relationship_type: str | None = None,
     relationship_family: str | None = None,
 ) -> list[Relationship]:
-    _ensure_campaign_exists(db_session, campaign_id)
-    statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
+    ensure_campaign_exists(db_session, campaign_id)
+    normalized_relationship_family = (
+        normalize_str_enum_value(RelationshipFamily, relationship_family) if relationship_family is not None else None
+    )
     if relationship_type is not None:
-        statement = statement.where(
-            Relationship.relationship_type == normalize_relationship_type_key(relationship_type)
-        )
-
-    statement = statement.order_by(Relationship.created_at.desc(), Relationship.id)
-    listed_relationships = list(db_session.scalars(statement))
-    if relationship_family is None:
-        return listed_relationships
-
-    normalized_family = normalize_str_enum_value(RelationshipFamily, relationship_family)
-    return [
-        listed_relationship
-        for listed_relationship in listed_relationships
-        if _get_descriptor_or_raise(
+        relationship_descriptor = _get_descriptor_or_raise(
             db_session,
             campaign_id=campaign_id,
-            relationship_type=listed_relationship.relationship_type,
-        ).family
-        == normalized_family
-    ]
+            relationship_type=relationship_type,
+        )
+        if normalized_relationship_family is not None and relationship_descriptor.family != normalized_relationship_family:
+            raise ValueError("Relationship type does not belong to the requested relationship family.")
+        statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
+        statement = statement.where(Relationship.relationship_type == relationship_descriptor.key)
+        statement = statement.order_by(Relationship.created_at.desc(), Relationship.id)
+        return list(db_session.scalars(statement))
+
+    statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
+    if normalized_relationship_family is not None:
+        matching_relationship_type_keys = [
+            descriptor.key
+            for descriptor in list_relationship_type_descriptors_by_family(
+                db_session,
+                relationship_family=normalized_relationship_family,
+                campaign_id=campaign_id,
+            )
+        ]
+        statement = statement.where(Relationship.relationship_type.in_(matching_relationship_type_keys))
+
+    statement = statement.order_by(Relationship.created_at.desc(), Relationship.id)
+    return list(db_session.scalars(statement))
 
 
 def get_relationship(
@@ -148,38 +139,20 @@ def update_relationship(
             source_document_id=update_fields["source_document_id"],
         )
     if "relationship_type" in update_fields:
-        relationship_descriptor = _get_descriptor_or_raise(
+        source_entity, target_entity = _get_relationship_endpoints(
+            db_session,
+            campaign_id=campaign_id,
+            source_entity_id=stored_relationship.source_entity_id,
+            target_entity_id=stored_relationship.target_entity_id,
+        )
+        update_fields["relationship_type"] = _validate_and_resolve_relationship_type(
             db_session,
             campaign_id=campaign_id,
             relationship_type=update_fields["relationship_type"],
-        )
-        source_entity = _get_campaign_entity(
-            db_session,
-            campaign_id=campaign_id,
-            entity_id=stored_relationship.source_entity_id,
-            not_found_message="Source entity not found.",
-        )
-        target_entity = _get_campaign_entity(
-            db_session,
-            campaign_id=campaign_id,
-            entity_id=stored_relationship.target_entity_id,
-            not_found_message="Target entity not found.",
-        )
-        _validate_type_pair(
-            source_entity_type=source_entity.type,
-            target_entity_type=target_entity.type,
-            relationship_descriptor=relationship_descriptor,
-        )
-        _validate_duplicates(
-            db_session,
-            campaign_id=campaign_id,
-            relationship_type=relationship_descriptor.key,
-            source_entity_id=stored_relationship.source_entity_id,
-            target_entity_id=stored_relationship.target_entity_id,
-            is_symmetric=relationship_descriptor.is_symmetric,
+            source_entity=source_entity,
+            target_entity=target_entity,
             existing_relationship_id=stored_relationship.id,
         )
-        update_fields["relationship_type"] = relationship_descriptor.key
 
     for field_name, field_value in update_fields.items():
         setattr(stored_relationship, field_name, field_value)
@@ -228,20 +201,13 @@ def build_relationship_response_payload(
         "visibility_status": relationship.visibility_status,
         "certainty_status": relationship.certainty_status,
         "notes": relationship.notes,
-        "confidence": (
-            float(relationship.confidence) if relationship.confidence is not None else None
-        ),
+        "confidence": (float(relationship.confidence) if relationship.confidence is not None else None),
         "source_document_id": relationship.source_document_id,
         "provenance_excerpt": relationship.provenance_excerpt,
         "provenance_data": relationship.provenance_data,
         "created_at": relationship.created_at,
         "updated_at": relationship.updated_at,
     }
-
-
-def _ensure_campaign_exists(db_session: Session, campaign_id: UUID) -> None:
-    if db_session.get(Campaign, campaign_id) is None:
-        raise NotFoundError("Campaign not found.")
 
 
 def _get_campaign_entity(
@@ -260,6 +226,28 @@ def _get_campaign_entity(
     if stored_entity is None:
         raise NotFoundError(not_found_message)
     return stored_entity
+
+
+def _get_relationship_endpoints(
+    db_session: Session,
+    *,
+    campaign_id: UUID,
+    source_entity_id: UUID,
+    target_entity_id: UUID,
+) -> tuple[Entity, Entity]:
+    source_entity = _get_campaign_entity(
+        db_session,
+        campaign_id=campaign_id,
+        entity_id=source_entity_id,
+        not_found_message="Source entity not found.",
+    )
+    target_entity = _get_campaign_entity(
+        db_session,
+        campaign_id=campaign_id,
+        entity_id=target_entity_id,
+        not_found_message="Target entity not found.",
+    )
+    return source_entity, target_entity
 
 
 def _validate_source_document(
@@ -294,6 +282,37 @@ def _get_descriptor_or_raise(
     if relationship_descriptor is None:
         raise NotFoundError("Relationship type not found.")
     return relationship_descriptor
+
+
+def _validate_and_resolve_relationship_type(
+    db_session: Session,
+    *,
+    campaign_id: UUID,
+    relationship_type: str,
+    source_entity: Entity,
+    target_entity: Entity,
+    existing_relationship_id: UUID | None = None,
+) -> str:
+    relationship_descriptor = _get_descriptor_or_raise(
+        db_session,
+        campaign_id=campaign_id,
+        relationship_type=relationship_type,
+    )
+    _validate_type_pair(
+        source_entity_type=source_entity.type,
+        target_entity_type=target_entity.type,
+        relationship_descriptor=relationship_descriptor,
+    )
+    _validate_duplicates(
+        db_session,
+        campaign_id=campaign_id,
+        relationship_type=relationship_descriptor.key,
+        source_entity_id=source_entity.id,
+        target_entity_id=target_entity.id,
+        is_symmetric=relationship_descriptor.is_symmetric,
+        existing_relationship_id=existing_relationship_id,
+    )
+    return relationship_descriptor.key
 
 
 def _validate_type_pair(
@@ -331,10 +350,8 @@ def _validate_duplicates(
         duplicate_statement = select(Relationship.id).where(
             *duplicate_conditions,
             or_(
-                (Relationship.source_entity_id == source_entity_id)
-                & (Relationship.target_entity_id == target_entity_id),
-                (Relationship.source_entity_id == target_entity_id)
-                & (Relationship.target_entity_id == source_entity_id),
+                (Relationship.source_entity_id == source_entity_id) & (Relationship.target_entity_id == target_entity_id),
+                (Relationship.source_entity_id == target_entity_id) & (Relationship.target_entity_id == source_entity_id),
             ),
         )
         if db_session.scalar(duplicate_statement) is not None:

@@ -5,8 +5,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Campaign, Entity
+from app.models import Entity
 from app.schemas import EntityCreate, EntityUpdate
+from app.services.campaign_lookup import ensure_campaign_exists
 from app.services.errors import NotFoundError
 
 
@@ -16,8 +17,7 @@ def create_entity(
     campaign_id: UUID,
     entity_create: EntityCreate,
 ) -> Entity:
-    if db_session.get(Campaign, campaign_id) is None:
-        raise NotFoundError("Campaign not found.")
+    ensure_campaign_exists(db_session, campaign_id)
 
     created_entity = Entity(
         campaign_id=campaign_id,

@@ -5,10 +5,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Campaign, Relationship
+from app.models import Relationship
 from app.models.relationship_type_definition import RelationshipTypeDefinition
 from app.schemas import RelationshipTypeCreate, RelationshipTypeUpdate
 from app.schemas.relationship_types import normalize_relationship_type_key
+from app.services.campaign_lookup import ensure_campaign_exists
 from app.services.errors import ConflictError, NotFoundError
 from app.services.relationship_catalog import (
     BUILT_IN_RELATIONSHIP_TYPES,
@@ -23,8 +24,8 @@ def list_relationship_types(
     *,
     campaign_id: UUID | None = None,
 ) -> list[RelationshipTypeDescriptor]:
-    if campaign_id is not None and db_session.get(Campaign, campaign_id) is None:
-        raise NotFoundError("Campaign not found.")
+    if campaign_id is not None:
+        ensure_campaign_exists(db_session, campaign_id)
     return list_relationship_type_descriptors(db_session, campaign_id=campaign_id)
 
 
@@ -34,8 +35,7 @@ def create_relationship_type(
     campaign_id: UUID,
     relationship_type_create: RelationshipTypeCreate,
 ) -> RelationshipTypeDefinition:
-    if db_session.get(Campaign, campaign_id) is None:
-        raise NotFoundError("Campaign not found.")
+    ensure_campaign_exists(db_session, campaign_id)
 
     normalized_type_key = normalize_relationship_type_key(relationship_type_create.label)
     if normalized_type_key in BUILT_IN_RELATIONSHIP_TYPES:
@@ -134,8 +134,7 @@ def _get_custom_relationship_type(
     campaign_id: UUID,
     relationship_type_key: str,
 ) -> RelationshipTypeDefinition:
-    if db_session.get(Campaign, campaign_id) is None:
-        raise NotFoundError("Campaign not found.")
+    ensure_campaign_exists(db_session, campaign_id)
 
     normalized_type_key = get_relationship_type_descriptor(
         db_session,

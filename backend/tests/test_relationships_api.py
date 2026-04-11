@@ -412,6 +412,88 @@ def test_list_relationships_supports_type_and_family_filters(
     ] == ["spouse_of"]
 
 
+def test_list_relationships_supports_family_only_filter(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        tarannon = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
+        civu = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
+        underground = Entity(campaign_id=test_campaign.id, type="organization", name="Underground")
+        db_session.add_all([tarannon, civu, underground])
+        db_session.flush()
+        db_session.add_all(
+            [
+                Relationship(
+                    campaign_id=test_campaign.id,
+                    source_entity=tarannon,
+                    target_entity=civu,
+                    relationship_type="spouse_of",
+                    lifecycle_status="current",
+                    visibility_status="public",
+                    certainty_status="confirmed",
+                ),
+                Relationship(
+                    campaign_id=test_campaign.id,
+                    source_entity=civu,
+                    target_entity=underground,
+                    relationship_type="works_for",
+                    lifecycle_status="current",
+                    visibility_status="secret",
+                    certainty_status="rumored",
+                ),
+            ]
+        )
+        db_session.commit()
+
+    response = api_request(
+        "GET",
+        f"/api/campaigns/{test_campaign.id}/relationships",
+        params={"family": "romance"},
+    )
+
+    assert response.status_code == 200
+    assert [
+        listed_relationship["relationship_type"] for listed_relationship in response.json()
+    ] == ["spouse_of"]
+
+
+def test_list_relationships_rejects_mismatched_type_and_family_filters(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
+        target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
+        db_session.add_all([source_entity, target_entity])
+        db_session.flush()
+        db_session.add(
+            Relationship(
+                campaign_id=test_campaign.id,
+                source_entity=source_entity,
+                target_entity=target_entity,
+                relationship_type="spouse_of",
+                lifecycle_status="current",
+                visibility_status="public",
+                certainty_status="confirmed",
+            )
+        )
+        db_session.commit()
+
+    response = api_request(
+        "GET",
+        f"/api/campaigns/{test_campaign.id}/relationships",
+        params={"type": "spouse_of", "family": "social"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "Relationship type does not belong to the requested relationship family."
+    }
+
+
 def test_get_update_and_delete_relationship_flow(
     api_request,
     db_session_factory,
@@ -475,3 +557,39 @@ def test_get_update_and_delete_relationship_flow(
         f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship_id}",
     )
     assert missing_response.status_code == 404
+
+
+def test_update_relationship_rejects_invalid_type_pair(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        source_entity = Entity(campaign_id=test_campaign.id, type="organization", name="The Choir")
+        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
+        db_session.add_all([source_entity, target_entity])
+        db_session.flush()
+        stored_relationship = Relationship(
+            campaign_id=test_campaign.id,
+            source_entity=source_entity,
+            target_entity=target_entity,
+            relationship_type="located_in",
+            lifecycle_status="current",
+            visibility_status="public",
+            certainty_status="confirmed",
+        )
+        db_session.add(stored_relationship)
+        db_session.commit()
+        db_session.refresh(stored_relationship)
+
+    response = api_request(
+        "PATCH",
+        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship.id}",
+        json={"relationship_type": "spouse_of"},
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"]
+        == "Relationship type is not valid for the source and target entity types."
+    )

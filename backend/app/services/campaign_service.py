@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Campaign, Owner
 from app.schemas import CampaignCreate, CampaignUpdate
+from app.services.campaign_lookup import get_campaign_or_raise
 from app.services.errors import ConflictError, NotFoundError
 
 
@@ -44,10 +45,7 @@ def list_campaigns(db_session: Session, *, owner_id: UUID | None = None) -> list
 
 
 def get_campaign(db_session: Session, campaign_id: UUID) -> Campaign:
-    stored_campaign = db_session.get(Campaign, campaign_id)
-    if stored_campaign is None:
-        raise NotFoundError("Campaign not found.")
-    return stored_campaign
+    return get_campaign_or_raise(db_session, campaign_id)
 
 
 def update_campaign(

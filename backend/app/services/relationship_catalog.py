@@ -468,6 +468,22 @@ def list_relationship_type_descriptors(
     return sorted(descriptors, key=lambda descriptor: (descriptor.family, descriptor.label))
 
 
+def list_relationship_type_descriptors_by_family(
+    db_session: Session,
+    *,
+    relationship_family: RelationshipFamily,
+    campaign_id: UUID | None = None,
+) -> list[RelationshipTypeDescriptor]:
+    return [
+        descriptor
+        for descriptor in list_relationship_type_descriptors(
+            db_session,
+            campaign_id=campaign_id,
+        )
+        if descriptor.family == relationship_family
+    ]
+
+
 def get_relationship_type_descriptor(
     db_session: Session,
     *,
