@@ -162,4 +162,33 @@ describe("frontend resource APIs", () => {
     const firstCall = fetchSpy.mock.calls[0] as [string, RequestInit] | undefined;
     expect(firstCall?.[0]).toBe("http://example.test/api/relationship-types?campaign_id=campaign-1");
   });
+
+  it("rejects malformed relationship type arrays instead of coercing members to strings", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            {
+              key: "bodyguard_of",
+              label: "bodyguard of",
+              family: "social",
+              reverse_label: "guarded by",
+              is_symmetric: false,
+              allowed_source_types: [42],
+              allowed_target_types: ["person"],
+              is_custom: true,
+              created_at: "2026-04-11T12:00:00Z",
+              updated_at: "2026-04-11T12:00:00Z",
+            },
+          ]),
+      }),
+    );
+
+    const { listRelationshipTypes } = await import("../api/relationshipTypes");
+
+    await expect(listRelationshipTypes("campaign-1")).rejects.toThrow("Invalid relationship type response payload.");
+  });
 });

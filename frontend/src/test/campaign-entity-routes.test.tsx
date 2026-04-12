@@ -678,7 +678,7 @@ describe("campaign and entity frontend routes", () => {
       target: { value: "political" },
     });
 
-    const relationshipTypeSelect = screen.getByLabelText("Relationship Type");
+    const relationshipTypeSelect = screen.getByLabelText(/Relationship Type/i);
     expect(within(relationshipTypeSelect).getByRole("option", { name: "governs" })).toBeInTheDocument();
     expect(within(relationshipTypeSelect).queryByRole("option", { name: "member of" })).toBeNull();
 
@@ -849,9 +849,113 @@ describe("campaign and entity frontend routes", () => {
     expect(screen.getByLabelText("Source Entity")).toHaveValue("entity-1");
     expect(screen.getByLabelText("Target Entity")).toHaveValue("entity-2");
     expect(screen.getByLabelText("Relationship Group")).toHaveValue("political");
-    expect(screen.getByLabelText("Relationship Type")).toHaveValue("governs");
+    expect(screen.getByLabelText(/Relationship Type/i)).toHaveValue("governs");
     expect(screen.getByRole("option", { name: /governs \(saved, now incompatible\)/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /Blackharbor \(saved, now incompatible\)/i })).toBeInTheDocument();
+  });
+
+  it("shows the add custom type helper next to relationship type selection", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.includes("/compatibility/entity-types")) {
+          return Promise.resolve(jsonResponse({ ok: true, body: { has_issues: false, issue_count: 0, issues: [] } }));
+        }
+
+        if (requestUrl.endsWith("/campaigns/campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                id: "campaign-1",
+                owner_id: "owner-1",
+                name: "Shadows of Glass",
+                description: "Urban intrigue campaign",
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        if (requestUrl.endsWith("/campaigns/campaign-1/entities")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                {
+                  id: "entity-1",
+                  campaign_id: "campaign-1",
+                  type: "person",
+                  name: "Rowan",
+                  summary: "Harbor ruler",
+                  metadata: {},
+                  source_document_id: null,
+                  provenance_excerpt: null,
+                  provenance_data: {},
+                  created_at: "2026-04-08T12:00:00Z",
+                  updated_at: "2026-04-08T12:00:00Z",
+                },
+                {
+                  id: "entity-2",
+                  campaign_id: "campaign-1",
+                  type: "location",
+                  name: "Blackharbor",
+                  summary: "Port city",
+                  metadata: {},
+                  source_document_id: null,
+                  provenance_excerpt: null,
+                  provenance_data: {},
+                  created_at: "2026-04-08T12:00:00Z",
+                  updated_at: "2026-04-08T12:00:00Z",
+                },
+              ],
+            }),
+          );
+        }
+
+        if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                {
+                  key: "bodyguard_of",
+                  label: "bodyguard of",
+                  family: "social",
+                  reverse_label: "guarded by",
+                  is_symmetric: false,
+                  allowed_source_types: ["person"],
+                  allowed_target_types: ["person", "location"],
+                  is_custom: true,
+                  created_at: "2026-04-11T12:00:00Z",
+                  updated_at: "2026-04-11T12:00:00Z",
+                },
+              ],
+            }),
+          );
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
+    );
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1/relationships/new"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "New Relationship" })).toBeInTheDocument();
+
+    expect(screen.getByRole("link", { name: /Add custom type/i })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/relationship-types",
+    );
   });
 
   it("keeps campaign quick notes locally across remounts", async () => {

@@ -324,7 +324,16 @@ export function RelationshipForm({
         </select>
       </label>
       <label className="field">
-        <span className="field-label">Relationship Type</span>
+        <span className="field-label">
+          Relationship Type{" "}
+          <span className="field-label-helper">
+            (
+            <Link className="text-link" to={`/campaigns/${campaignId}/relationship-types`}>
+              Add custom type
+            </Link>
+            )
+          </span>
+        </span>
         <select
           disabled={!relationshipGroup}
           value={relationshipType}
@@ -420,14 +429,6 @@ export function RelationshipForm({
           }}
         />
       </label>
-      {selectedRelationshipType?.isCustom ? (
-        <p className="section-copy">
-          Editing a custom type?{" "}
-          <Link className="text-link" to={`/campaigns/${campaignId}/relationships`}>
-            Jump to relationship management.
-          </Link>
-        </p>
-      ) : null}
       {submitError ? <p className="field-error">{submitError}</p> : null}
       <button className="primary-button" disabled={submitting} type="submit">
         {submitting ? "Saving..." : submitLabel}

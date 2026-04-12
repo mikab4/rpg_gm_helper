@@ -628,6 +628,12 @@ h4 {
   font-weight: 600;
 }
 
+.field-label-helper {
+  color: rgba(70, 52, 32, 0.78);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 .field input,
 .field select,
 .field textarea {
