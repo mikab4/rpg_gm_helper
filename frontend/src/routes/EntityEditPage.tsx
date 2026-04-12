@@ -104,18 +104,11 @@ export function EntityEditPage() {
   }
 
   if (pageState.status === "loading") {
-    return (
-      <RequestStateBlock
-        message="Loading entity details and campaign context."
-        title="Loading entity"
-      />
-    );
+    return <RequestStateBlock message="Loading entity details and campaign context." title="Loading entity" />;
   }
 
   if (pageState.status === "error") {
-    return (
-      <RequestStateBlock message={pageState.message} title="Entity unavailable" tone="error" />
-    );
+    return <RequestStateBlock message={pageState.message} title="Entity unavailable" tone="error" />;
   }
 
   return (
@@ -123,18 +116,10 @@ export function EntityEditPage() {
       <PageHeader
         actions={
           <div className="action-row">
-            <Link
-              className="secondary-button"
-              to={`/campaigns/${pageState.campaign.id}/entities/${pageState.entity.id}`}
-            >
+            <Link className="secondary-button" to={`/campaigns/${pageState.campaign.id}/entities/${pageState.entity.id}`}>
               Full Profile
             </Link>
-            <button
-              className="danger-button"
-              disabled={deleting}
-              type="button"
-              onClick={() => void handleDelete()}
-            >
+            <button className="danger-button" disabled={deleting} type="button" onClick={() => void handleDelete()}>
               {deleting ? "Deleting..." : "Delete Entity"}
             </button>
           </div>

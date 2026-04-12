@@ -99,13 +99,7 @@ export function EntitiesPage() {
   }, [campaignOptionsState]);
 
   const campaignNamesById = useMemo(
-    () =>
-      new Map(
-        Array.from(campaignsById.entries()).map(([nextCampaignId, campaign]) => [
-          nextCampaignId,
-          campaign.name,
-        ]),
-      ),
+    () => new Map(Array.from(campaignsById.entries()).map(([nextCampaignId, campaign]) => [nextCampaignId, campaign.name])),
     [campaignsById],
   );
 
@@ -119,9 +113,7 @@ export function EntitiesPage() {
       return entityListState.entities;
     }
 
-    return entityListState.entities.filter((entity) =>
-      entity.name.toLowerCase().includes(normalizedSearch),
-    );
+    return entityListState.entities.filter((entity) => entity.name.toLowerCase().includes(normalizedSearch));
   }, [entityListState, entitySearch]);
 
   useEffect(() => {
@@ -129,9 +121,7 @@ export function EntitiesPage() {
       return;
     }
 
-    const selectedEntityStillVisible = filteredEntities.some(
-      (entity) => entity.id === selectedEntity.id,
-    );
+    const selectedEntityStillVisible = filteredEntities.some((entity) => entity.id === selectedEntity.id);
     if (!selectedEntityStillVisible) {
       setSelectedEntity(null);
     }
@@ -164,33 +154,19 @@ export function EntitiesPage() {
           <RequestStateBlock message="Loading campaign filter options." title="Loading filters" />
         ) : null}
         {campaignOptionsState.status === "error" ? (
-          <RequestStateBlock
-            message={campaignOptionsState.message}
-            title="Filters unavailable"
-            tone="error"
-          />
+          <RequestStateBlock message={campaignOptionsState.message} title="Filters unavailable" tone="error" />
         ) : null}
       </SectionPanel>
       <div className="workspace-detail-layout">
         <SectionPanel title="World Entities">
           {entityListState.status === "loading" ? (
-            <RequestStateBlock
-              message="Loading entity records from the backend."
-              title="Loading entities"
-            />
+            <RequestStateBlock message="Loading entity records from the backend." title="Loading entities" />
           ) : null}
           {entityListState.status === "error" ? (
-            <RequestStateBlock
-              message={entityListState.message}
-              title="Entities unavailable"
-              tone="error"
-            />
+            <RequestStateBlock message={entityListState.message} title="Entities unavailable" tone="error" />
           ) : null}
           {entityListState.status === "ready" && filteredEntities.length === 0 ? (
-            <RequestStateBlock
-              message="No entities match the current search or filters."
-              title="No entities found"
-            />
+            <RequestStateBlock message="No entities match the current search or filters." title="No entities found" />
           ) : null}
           {entityListState.status === "ready" && filteredEntities.length > 0 ? (
             <CampaignEntityRoster

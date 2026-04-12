@@ -21,8 +21,7 @@ describe("OverviewPage", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
-        const requestUrl =
-          typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
         if (requestUrl.endsWith("/health")) {
           return new Promise((resolve) => {
@@ -92,9 +91,7 @@ describe("OverviewPage", () => {
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole("heading", { name: "GM Workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "GM Workspace" }).className).toContain(
-      "font-cinzel",
-    );
+    expect(screen.getByRole("heading", { name: "GM Workspace" }).className).toContain("font-cinzel");
     expect(screen.getByRole("heading", { name: "Overview" }).className).toContain("font-ui");
     expect(screen.getByRole("link", { name: "World" })).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Quick find...")).not.toBeInTheDocument();
@@ -105,23 +102,15 @@ describe("OverviewPage", () => {
     expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
     expect(screen.queryByText("Global View")).toBeNull();
     expect(screen.queryByRole("button", { name: "New Entry" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "New Entity" })).toHaveAttribute(
-      "href",
-      "/entities/new",
-    );
+    expect(screen.getByRole("link", { name: "New Entity" })).toHaveAttribute("href", "/entities/new");
     const newCampaignLink = screen.getByRole("link", { name: "New Campaign" });
     expect(newCampaignLink).toHaveAttribute("href", "/campaigns/new");
     expect(newCampaignLink.className).toContain("secondary-button");
     expect(screen.getByRole("heading", { name: "Session Scratchpad" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recent Entities" })).toBeInTheDocument();
     expect(screen.getByText("Type quick notes here... they save locally.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Shadows of Glass" })).toHaveAttribute(
-      "href",
-      "/campaigns/campaign-1",
-    );
-    expect(
-      screen.queryByText("Open a campaign from the list to keep working."),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Shadows of Glass" })).toHaveAttribute("href", "/campaigns/campaign-1");
+    expect(screen.queryByText("Open a campaign from the list to keep working.")).not.toBeInTheDocument();
   });
 
   it("shows an error state when the health response payload is invalid", async () => {
@@ -147,9 +136,7 @@ describe("OverviewPage", () => {
     expect(screen.getByRole("textbox", { name: "Quick Draft" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recent Entities" })).toBeInTheDocument();
     expect(screen.getByText("Invalid health response payload.")).toBeInTheDocument();
-    expect(
-      screen.getByText("To enable AI extraction and sync, run the server:"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("To enable AI extraction and sync, run the server:")).toBeInTheDocument();
   });
 
   it("aborts the health request on unmount without rendering an error state", async () => {
@@ -181,10 +168,7 @@ describe("OverviewPage", () => {
 
   it("keeps quick draft notes locally even when the backend is offline", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:8000")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:8000")));
 
     const { routes } = await import("../../app/routes");
     const router = createMemoryRouter(routes, {
@@ -196,9 +180,7 @@ describe("OverviewPage", () => {
     const quickDraft = await screen.findByRole("textbox", { name: "Quick Draft" });
     fireEvent.change(quickDraft, { target: { value: "King's brother hides in the east tower." } });
 
-    expect(window.localStorage.getItem("gm-workspace:quick-draft")).toBe(
-      "King's brother hides in the east tower.",
-    );
+    expect(window.localStorage.getItem("gm-workspace:quick-draft")).toBe("King's brother hides in the east tower.");
     expect(screen.getByText("Offline")).toBeInTheDocument();
   });
 
@@ -226,9 +208,7 @@ describe("OverviewPage", () => {
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByText("No campaigns yet.")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Open a campaign from the list to keep working."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Open a campaign from the list to keep working.")).not.toBeInTheDocument();
   });
 
   it("renders the reference icon language in the shell and overview surfaces", async () => {
@@ -257,9 +237,7 @@ describe("OverviewPage", () => {
     expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     expect(container.querySelectorAll(".shell-header svg").length).toBeGreaterThanOrEqual(1);
     expect(container.querySelectorAll(".shell-nav svg").length).toBeGreaterThanOrEqual(5);
-    expect(
-      container.querySelectorAll(".overview-context-header svg").length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(container.querySelectorAll(".overview-context-header svg").length).toBeGreaterThanOrEqual(1);
     expect(container.querySelectorAll(".overview-card svg").length).toBeGreaterThanOrEqual(2);
     expect(container.querySelector(".nav-link")).not.toBeNull();
     expect(getComputedStyle(container.querySelector(".nav-link") as Element).gap).not.toBe("0px");

@@ -18,12 +18,8 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
         >
           <div className="campaign-card-copy">
             <h3 className="campaign-card-title">{campaign.name}</h3>
-            <p className="campaign-card-updated">
-              Last Updated {new Date(campaign.updatedAt).toLocaleDateString()}
-            </p>
-            <p className="campaign-card-description">
-              {campaign.description ?? "No description yet."}
-            </p>
+            <p className="campaign-card-updated">Last Updated {new Date(campaign.updatedAt).toLocaleDateString()}</p>
+            <p className="campaign-card-description">{campaign.description ?? "No description yet."}</p>
           </div>
           <div aria-hidden="true" className="campaign-card-actions">
             <span className="campaign-card-open">

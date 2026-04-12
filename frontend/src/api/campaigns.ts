@@ -72,10 +72,7 @@ export async function listCampaigns(options: CampaignRequestOptions = {}): Promi
   return parseCampaignList(payload);
 }
 
-export async function getCampaign(
-  campaignId: string,
-  options: CampaignRequestOptions = {},
-): Promise<Campaign> {
+export async function getCampaign(campaignId: string, options: CampaignRequestOptions = {}): Promise<Campaign> {
   const payload = await apiRequest(`/campaigns/${campaignId}`, {
     signal: options.signal,
   });
@@ -94,10 +91,7 @@ export async function createCampaign(campaignCreate: CampaignCreate): Promise<Ca
   return parseCampaign(payload);
 }
 
-export async function updateCampaign(
-  campaignId: string,
-  campaignUpdate: CampaignUpdate,
-): Promise<Campaign> {
+export async function updateCampaign(campaignId: string, campaignUpdate: CampaignUpdate): Promise<Campaign> {
   const payload = await apiRequest(`/campaigns/${campaignId}`, {
     body: serializeCampaignUpdate(campaignUpdate),
     headers: {

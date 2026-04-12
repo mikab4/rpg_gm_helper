@@ -32,23 +32,15 @@ export function EntityTable({
           {entities.map((entity) => (
             <tr key={entity.id}>
               <td>
-                <Link
-                  className="record-link"
-                  to={`/campaigns/${entity.campaignId}/entities/${entity.id}`}
-                >
+                <Link className="record-link" to={`/campaigns/${entity.campaignId}/entities/${entity.id}`}>
                   {entity.name}
                 </Link>
               </td>
               <td>{entity.type}</td>
-              {showCampaignColumn ? (
-                <td>{campaignsById.get(entity.campaignId)?.name ?? entity.campaignId}</td>
-              ) : null}
+              {showCampaignColumn ? <td>{campaignsById.get(entity.campaignId)?.name ?? entity.campaignId}</td> : null}
               <td>{entity.summary ?? "No relationship scent recorded yet."}</td>
               <td>
-                <Link
-                  className="text-link"
-                  to={`/campaigns/${entity.campaignId}/entities/${entity.id}`}
-                >
+                <Link className="text-link" to={`/campaigns/${entity.campaignId}/entities/${entity.id}`}>
                   Open
                 </Link>
                 {onQuickLook ? (

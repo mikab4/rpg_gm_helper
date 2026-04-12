@@ -20,6 +20,7 @@ class LegacyEntityTypeIssue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     legacy_type: str
+    raw_variants: list[str]
     count: int
     example_entities: list[LegacyEntityTypeExample]
 

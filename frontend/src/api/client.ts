@@ -47,12 +47,7 @@ async function getApiErrorMessage(response: Response): Promise<string> {
   }
 
   const payload = (await response.json()) as unknown;
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "detail" in payload &&
-    typeof payload.detail === "string"
-  ) {
+  if (typeof payload === "object" && payload !== null && "detail" in payload && typeof payload.detail === "string") {
     return payload.detail;
   }
 

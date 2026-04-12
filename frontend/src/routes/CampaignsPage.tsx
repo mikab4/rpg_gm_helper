@@ -52,17 +52,10 @@ export function CampaignsPage() {
         title="Campaigns"
       />
       {requestState.status === "loading" ? (
-        <RequestStateBlock
-          message="Loading the campaign registry from the backend."
-          title="Loading campaigns"
-        />
+        <RequestStateBlock message="Loading the campaign registry from the backend." title="Loading campaigns" />
       ) : null}
       {requestState.status === "error" ? (
-        <RequestStateBlock
-          message={requestState.message}
-          title="Campaigns failed to load"
-          tone="error"
-        />
+        <RequestStateBlock message={requestState.message} title="Campaigns failed to load" tone="error" />
       ) : null}
       {requestState.status === "success" && requestState.campaigns.length === 0 ? (
         <RequestStateBlock

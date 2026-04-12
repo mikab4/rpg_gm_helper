@@ -76,18 +76,11 @@ export function CampaignWorkspacePage() {
   }
 
   if (pageState.status === "loading") {
-    return (
-      <RequestStateBlock
-        message="Loading the campaign workspace and its current details."
-        title="Loading campaign"
-      />
-    );
+    return <RequestStateBlock message="Loading the campaign workspace and its current details." title="Loading campaign" />;
   }
 
   if (pageState.status === "error") {
-    return (
-      <RequestStateBlock message={pageState.message} title="Campaign unavailable" tone="error" />
-    );
+    return <RequestStateBlock message={pageState.message} title="Campaign unavailable" tone="error" />;
   }
 
   if (deleteState.status === "deleted") {

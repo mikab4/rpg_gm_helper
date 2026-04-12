@@ -6,12 +6,7 @@ type GetHealthOptions = {
 };
 
 function parseHealthResponse(payload: unknown): HealthResponse {
-  if (
-    typeof payload !== "object" ||
-    payload === null ||
-    !("status" in payload) ||
-    typeof payload.status !== "string"
-  ) {
+  if (typeof payload !== "object" || payload === null || !("status" in payload) || typeof payload.status !== "string") {
     throw new Error("Invalid health response payload.");
   }
 

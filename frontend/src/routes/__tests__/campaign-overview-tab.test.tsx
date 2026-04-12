@@ -60,16 +60,9 @@ describe("CampaignOverviewTab", () => {
   });
 
   it("does not overwrite another campaign's quick notes when the campaign context changes", async () => {
-    window.localStorage.setItem(
-      "gm-workspace:campaign-quick-notes:campaign-2",
-      "Campaign two already has notes.",
-    );
+    window.localStorage.setItem("gm-workspace:campaign-quick-notes:campaign-2", "Campaign two already has notes.");
 
-    let currentContext = buildCampaignWorkspaceContext(
-      "campaign-1",
-      "Shadows of Glass",
-      "Urban intrigue campaign",
-    );
+    let currentContext = buildCampaignWorkspaceContext("campaign-1", "Shadows of Glass", "Urban intrigue campaign");
     mockUseOutletContext.mockImplementation(() => currentContext);
 
     const { CampaignOverviewTab } = await import("../CampaignOverviewTab");
@@ -85,17 +78,11 @@ describe("CampaignOverviewTab", () => {
       );
     });
 
-    currentContext = buildCampaignWorkspaceContext(
-      "campaign-2",
-      "Ashes of Karth",
-      "Second campaign",
-    );
+    currentContext = buildCampaignWorkspaceContext("campaign-2", "Ashes of Karth", "Second campaign");
 
     rerender(<CampaignOverviewTab />);
 
-    expect(await screen.findByRole("textbox", { name: "Quick Notes" })).toHaveValue(
-      "Campaign two already has notes.",
-    );
+    expect(await screen.findByRole("textbox", { name: "Quick Notes" })).toHaveValue("Campaign two already has notes.");
     expect(window.localStorage.getItem("gm-workspace:campaign-quick-notes:campaign-2")).toBe(
       "Campaign two already has notes.",
     );

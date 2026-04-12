@@ -19,6 +19,7 @@ describe("frontend compatibility API", () => {
           issues: [
             {
               legacy_type: "npc",
+              raw_variants: ["NPC", " npc "],
               count: 2,
               example_entities: [
                 {
@@ -41,7 +42,7 @@ describe("frontend compatibility API", () => {
     await expect(getEntityTypeCompatibilityReport()).resolves.toMatchObject({
       hasIssues: true,
       issueCount: 1,
-      issues: [{ legacyType: "npc", count: 2 }],
+      issues: [{ legacyType: "npc", rawVariants: ["NPC", " npc "], count: 2 }],
     });
 
     const firstCall = fetchSpy.mock.calls[0] as [string, RequestInit] | undefined;

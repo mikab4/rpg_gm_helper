@@ -97,6 +97,7 @@ describe("campaign and entity frontend routes", () => {
                   issues: [
                     {
                       legacy_type: "npc",
+                      raw_variants: ["NPC", " npc "],
                       count: 2,
                       example_entities: [
                         {
@@ -174,8 +175,7 @@ describe("campaign and entity frontend routes", () => {
     expect(screen.getByRole("heading", { name: '"npc"' })).toBeInTheDocument();
     expect(screen.getByText("2 affected records")).toBeInTheDocument();
     expect(screen.getByText("Legacy Type")).toBeInTheDocument();
-    expect(screen.queryByText("Examples:")).toBeNull();
-    expect(screen.queryByText("Rowan (Shadows of Glass)")).toBeNull();
+    expect(screen.getByText('Found as "NPC" and " npc " in older records.')).toBeInTheDocument();
     expect(screen.getByText(/This process is permanent once applied. Please review your mappings./i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Map npc to"), {

@@ -82,11 +82,7 @@ export function EntityFormPage({ source }: EntityFormPageProps) {
         actions={
           <Link
             className="secondary-button"
-            to={
-              source === "campaign" && campaignId
-                ? `/campaigns/${campaignId}/entities`
-                : "/entities"
-            }
+            to={source === "campaign" && campaignId ? `/campaigns/${campaignId}/entities` : "/entities"}
           >
             Cancel
           </Link>
@@ -95,17 +91,10 @@ export function EntityFormPage({ source }: EntityFormPageProps) {
         title="New Entity"
       />
       {campaignOptionsState.status === "loading" ? (
-        <RequestStateBlock
-          message="Loading campaign choices for the entity form."
-          title="Loading form"
-        />
+        <RequestStateBlock message="Loading campaign choices for the entity form." title="Loading form" />
       ) : null}
       {campaignOptionsState.status === "error" ? (
-        <RequestStateBlock
-          message={campaignOptionsState.message}
-          title="Form unavailable"
-          tone="error"
-        />
+        <RequestStateBlock message={campaignOptionsState.message} title="Form unavailable" tone="error" />
       ) : null}
       {campaignOptionsState.status === "ready" ? (
         <SectionPanel title="Entity Details">

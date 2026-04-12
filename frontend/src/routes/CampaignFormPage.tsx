@@ -115,10 +115,7 @@ export function CampaignFormPage({ mode }: CampaignFormPageProps) {
     <div className="page-stack workspace-surface">
       <PageHeader
         actions={
-          <Link
-            className="secondary-button"
-            to={mode === "edit" && campaignId ? `/campaigns/${campaignId}` : "/campaigns"}
-          >
+          <Link className="secondary-button" to={mode === "edit" && campaignId ? `/campaigns/${campaignId}` : "/campaigns"}>
             Cancel
           </Link>
         }
@@ -126,10 +123,7 @@ export function CampaignFormPage({ mode }: CampaignFormPageProps) {
         title={mode === "create" ? "New Campaign" : "Edit Campaign"}
       />
       {pageState.status === "loading" ? (
-        <RequestStateBlock
-          message="Preparing the campaign editor and local owner context."
-          title="Loading form"
-        />
+        <RequestStateBlock message="Preparing the campaign editor and local owner context." title="Loading form" />
       ) : null}
       {pageState.status === "error" ? (
         <RequestStateBlock message={pageState.message} title="Form unavailable" tone="error" />

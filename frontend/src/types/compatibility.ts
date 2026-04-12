@@ -7,6 +7,7 @@ export type LegacyEntityTypeExample = {
 
 export type LegacyEntityTypeIssue = {
   legacyType: string;
+  rawVariants: string[];
   count: number;
   exampleEntities: LegacyEntityTypeExample[];
 };

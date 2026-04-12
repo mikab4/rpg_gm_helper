@@ -13,10 +13,7 @@ type HealthRequestState =
   | { status: "success"; health: HealthResponse }
   | { status: "error"; message: string };
 
-type CampaignShortcutState =
-  | { status: "loading" }
-  | { status: "ready"; campaigns: Campaign[] }
-  | { status: "error" };
+type CampaignShortcutState = { status: "loading" } | { status: "ready"; campaigns: Campaign[] } | { status: "error" };
 
 export function OverviewPage() {
   const [requestState, setRequestState] = useState<HealthRequestState>({ status: "loading" });
@@ -25,9 +22,7 @@ export function OverviewPage() {
   });
   const [isReconnectSpinning, setIsReconnectSpinning] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [quickDraft, setQuickDraft] = useState(
-    () => window.localStorage.getItem("gm-workspace:quick-draft") ?? "",
-  );
+  const [quickDraft, setQuickDraft] = useState(() => window.localStorage.getItem("gm-workspace:quick-draft") ?? "");
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -198,25 +193,15 @@ export function OverviewPage() {
             </article>
             <article className="recent-record">
               <h4>Campaign Shortcut</h4>
-              {campaignShortcutState.status === "loading" ? (
-                <p>Loading campaign shortcuts...</p>
-              ) : null}
-              {campaignShortcutState.status === "error" ? (
-                <p>Campaign shortcuts unavailable.</p>
-              ) : null}
-              {campaignShortcutState.status === "ready" &&
-              campaignShortcutState.campaigns.length === 0 ? (
+              {campaignShortcutState.status === "loading" ? <p>Loading campaign shortcuts...</p> : null}
+              {campaignShortcutState.status === "error" ? <p>Campaign shortcuts unavailable.</p> : null}
+              {campaignShortcutState.status === "ready" && campaignShortcutState.campaigns.length === 0 ? (
                 <p>No campaigns yet.</p>
               ) : null}
-              {campaignShortcutState.status === "ready" &&
-              campaignShortcutState.campaigns.length > 0 ? (
+              {campaignShortcutState.status === "ready" && campaignShortcutState.campaigns.length > 0 ? (
                 <div className="campaign-shortcut-list">
                   {campaignShortcutState.campaigns.map((campaign) => (
-                    <Link
-                      key={campaign.id}
-                      className="record-link"
-                      to={`/campaigns/${campaign.id}`}
-                    >
+                    <Link key={campaign.id} className="record-link" to={`/campaigns/${campaign.id}`}>
                       {campaign.name}
                     </Link>
                   ))}

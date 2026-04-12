@@ -37,6 +37,9 @@ function parseLegacyEntityTypeIssue(payload: unknown): LegacyEntityTypeIssue {
     payload === null ||
     !("legacy_type" in payload) ||
     typeof payload.legacy_type !== "string" ||
+    !("raw_variants" in payload) ||
+    !Array.isArray(payload.raw_variants) ||
+    payload.raw_variants.some((rawVariant) => typeof rawVariant !== "string") ||
     !("count" in payload) ||
     typeof payload.count !== "number" ||
     !("example_entities" in payload) ||
@@ -45,10 +48,18 @@ function parseLegacyEntityTypeIssue(payload: unknown): LegacyEntityTypeIssue {
     throw new Error("Invalid legacy entity type issue payload.");
   }
 
+  const typedPayload = payload as {
+    legacy_type: string;
+    raw_variants: string[];
+    count: number;
+    example_entities: unknown[];
+  };
+
   return {
-    legacyType: payload.legacy_type,
-    count: payload.count,
-    exampleEntities: payload.example_entities.map(parseLegacyEntityTypeExample),
+    legacyType: typedPayload.legacy_type,
+    rawVariants: typedPayload.raw_variants,
+    count: typedPayload.count,
+    exampleEntities: typedPayload.example_entities.map(parseLegacyEntityTypeExample),
   };
 }
 

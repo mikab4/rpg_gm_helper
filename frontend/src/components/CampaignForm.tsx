@@ -13,13 +13,7 @@ type CampaignFormProps = {
   onSubmit: (values: CampaignFormValues) => Promise<void>;
 };
 
-export function CampaignForm({
-  initialValues,
-  submitLabel,
-  submitError,
-  submitting,
-  onSubmit,
-}: CampaignFormProps) {
+export function CampaignForm({ initialValues, submitLabel, submitError, submitting, onSubmit }: CampaignFormProps) {
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
   const [nameError, setNameError] = useState<string | null>(null);

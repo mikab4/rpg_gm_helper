@@ -70,6 +70,26 @@ function getMigrationHint(selectedEntityType: string): string {
   return MIGRATION_VALUE_HINTS[selectedEntityType] ?? MIGRATION_VALUE_HINTS.other;
 }
 
+function describeRawVariants(rawVariants: string[]): string | null {
+  if (rawVariants.length <= 1) {
+    return null;
+  }
+
+  if (rawVariants.length === 2) {
+    return `Found as "${rawVariants[0]}" and "${rawVariants[1]}" in older records.`;
+  }
+
+  const lastRawVariant = rawVariants.at(-1);
+  if (lastRawVariant === undefined) {
+    return null;
+  }
+  const leadingRawVariants = rawVariants
+    .slice(0, -1)
+    .map((rawVariant) => `"${rawVariant}"`)
+    .join(", ");
+  return `Found as ${leadingRawVariants}, and "${lastRawVariant}" in older records.`;
+}
+
 export function CompatibilityMigrationPanel({
   report,
   migrationError,
@@ -128,6 +148,7 @@ export function CompatibilityMigrationPanel({
                 <p>
                   {issue.count} affected record{issue.count === 1 ? "" : "s"}
                 </p>
+                {describeRawVariants(issue.rawVariants) ? <p>{describeRawVariants(issue.rawVariants)}</p> : null}
               </div>
               <span className="compatibility-badge">Legacy Type</span>
             </div>

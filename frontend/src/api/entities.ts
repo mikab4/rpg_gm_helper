@@ -120,30 +120,20 @@ export async function listCampaignEntities(
   entityType?: string,
   signal?: AbortSignal,
 ): Promise<Entity[]> {
-  const payload = await apiRequest(
-    `/campaigns/${campaignId}/entities${buildEntityQueryString({ entityType })}`,
-    {
-      signal,
-    },
-  );
+  const payload = await apiRequest(`/campaigns/${campaignId}/entities${buildEntityQueryString({ entityType })}`, {
+    signal,
+  });
   return parseEntityList(payload);
 }
 
-export async function getEntity(
-  campaignId: string,
-  entityId: string,
-  signal?: AbortSignal,
-): Promise<Entity> {
+export async function getEntity(campaignId: string, entityId: string, signal?: AbortSignal): Promise<Entity> {
   const payload = await apiRequest(`/campaigns/${campaignId}/entities/${entityId}`, {
     signal,
   });
   return parseEntity(payload);
 }
 
-export async function createEntity(
-  campaignId: string,
-  entityCreate: EntityCreate,
-): Promise<Entity> {
+export async function createEntity(campaignId: string, entityCreate: EntityCreate): Promise<Entity> {
   const payload = await apiRequest(`/campaigns/${campaignId}/entities`, {
     body: serializeEntityCreate(entityCreate),
     headers: {
@@ -154,11 +144,7 @@ export async function createEntity(
   return parseEntity(payload);
 }
 
-export async function updateEntity(
-  campaignId: string,
-  entityId: string,
-  entityUpdate: EntityUpdate,
-): Promise<Entity> {
+export async function updateEntity(campaignId: string, entityId: string, entityUpdate: EntityUpdate): Promise<Entity> {
   const payload = await apiRequest(`/campaigns/${campaignId}/entities/${entityId}`, {
     body: serializeEntityUpdate(entityUpdate),
     headers: {
