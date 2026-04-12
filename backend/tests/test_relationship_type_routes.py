@@ -43,11 +43,13 @@ def test_build_relationship_type_response_accepts_custom_definition_and_descript
     )
 
     assert custom_response.key == "bodyguard_of"
+    assert custom_response.family_label == "Social"
     assert custom_response.reverse_label == "guarded by"
     assert custom_response.is_custom is True
     assert custom_response.created_at == created_at
     assert custom_response.updated_at == updated_at
 
     assert built_in_response.key == "sibling_of"
+    assert built_in_response.family_label == "Family"
     assert built_in_response.reverse_label == "sibling of"
     assert built_in_response.is_custom is False

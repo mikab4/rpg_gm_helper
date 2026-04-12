@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { getCampaign } from "../api/campaigns";
 import { ApiError } from "../api/client";
+import { listRelationshipFamilies } from "../api/relationshipFamilies";
 import {
   createRelationshipType,
   deleteRelationshipType,
@@ -14,12 +15,18 @@ import { RelationshipTypeManager } from "../components/RelationshipTypeManager";
 import { RequestStateBlock } from "../components/RequestStateBlock";
 import { SectionPanel } from "../components/SectionPanel";
 import type { Campaign } from "../types/campaigns";
+import type { RelationshipFamilyOption } from "../types/relationshipFamilies";
 import type { RelationshipType, RelationshipTypeCreate, RelationshipTypeUpdate } from "../types/relationshipTypes";
 
 type RelationshipTypeManagementState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { campaign: Campaign; relationshipTypes: RelationshipType[]; status: "ready" };
+  | {
+      campaign: Campaign;
+      relationshipFamilies: RelationshipFamilyOption[];
+      relationshipTypes: RelationshipType[];
+      status: "ready";
+    };
 
 function getRelationshipTypeErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 422) {
@@ -53,12 +60,13 @@ export function RelationshipTypeManagementPage() {
       }
 
       try {
-        const [campaign, relationshipTypes] = await Promise.all([
+        const [campaign, relationshipFamilies, relationshipTypes] = await Promise.all([
           getCampaign(campaignId, { signal: abortController.signal }),
+          listRelationshipFamilies(),
           listRelationshipTypes(campaignId),
         ]);
 
-        setPageState({ campaign, relationshipTypes, status: "ready" });
+        setPageState({ campaign, relationshipFamilies, relationshipTypes, status: "ready" });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -86,6 +94,7 @@ export function RelationshipTypeManagementPage() {
     const relationshipTypes = await listRelationshipTypes(campaignId);
     setPageState({
       campaign: pageState.campaign,
+      relationshipFamilies: pageState.relationshipFamilies,
       relationshipTypes,
       status: "ready",
     });
@@ -179,6 +188,7 @@ export function RelationshipTypeManagementPage() {
         title="Custom Relationship Types"
       >
         <RelationshipTypeManager
+          relationshipFamilies={pageState.relationshipFamilies}
           relationshipTypes={pageState.relationshipTypes}
           submitError={submitError}
           submitting={submitting}

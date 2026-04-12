@@ -12,6 +12,7 @@ export type Relationship = {
   targetEntityId: string;
   relationshipType: string;
   relationshipFamily: RelationshipFamilyValue;
+  relationshipFamilyLabel: string;
   forwardLabel: string;
   reverseLabel: string;
   isSymmetric: boolean;

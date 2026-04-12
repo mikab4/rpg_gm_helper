@@ -7,6 +7,7 @@ export type RelationshipType = {
   key: string;
   label: string;
   family: RelationshipFamilyValue;
+  familyLabel: string;
   reverseLabel: string | null;
   isSymmetric: boolean;
   allowedSourceTypes: EntityTypeValue[];

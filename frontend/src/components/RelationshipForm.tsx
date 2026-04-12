@@ -5,14 +5,13 @@ import {
   RELATIONSHIP_CERTAINTY_STATUS_OPTIONS,
   RELATIONSHIP_LIFECYCLE_STATUS_OPTIONS,
   RELATIONSHIP_VISIBILITY_STATUS_OPTIONS,
-  formatRelationshipFamilyLabel,
-  type RelationshipFamilyValue,
   type RelationshipCertaintyStatusValue,
   type RelationshipLifecycleStatusValue,
   type RelationshipVisibilityStatusValue,
 } from "../relationships/domain";
 import { isEntityTypeValue } from "../entities/entityTypes";
 import type { Entity } from "../types/entities";
+import type { RelationshipFamilyOption } from "../types/relationshipFamilies";
 import type { RelationshipType } from "../types/relationshipTypes";
 
 export type RelationshipFormValues = {
@@ -29,6 +28,7 @@ type RelationshipFormProps = {
   campaignId: string;
   entities: Entity[];
   initialValues: RelationshipFormValues;
+  relationshipFamilies: RelationshipFamilyOption[];
   relationshipTypes: RelationshipType[];
   submitError: string | null;
   submitLabel: string;
@@ -40,6 +40,7 @@ export function RelationshipForm({
   campaignId,
   entities,
   initialValues,
+  relationshipFamilies,
   relationshipTypes,
   submitError,
   submitLabel,
@@ -49,7 +50,7 @@ export function RelationshipForm({
   const [sourceEntityId, setSourceEntityId] = useState(initialValues.sourceEntityId);
   const [targetEntityId, setTargetEntityId] = useState(initialValues.targetEntityId);
   const [relationshipType, setRelationshipType] = useState(initialValues.relationshipType);
-  const [relationshipGroup, setRelationshipGroup] = useState<RelationshipFamilyValue | "">(
+  const [relationshipGroup, setRelationshipGroup] = useState(
     relationshipTypes.find((typeOption) => typeOption.key === initialValues.relationshipType)?.family ?? "",
   );
   const [lifecycleStatus, setLifecycleStatus] = useState(initialValues.lifecycleStatus);
@@ -119,6 +120,10 @@ export function RelationshipForm({
   const groupedRelationshipTypes = compatibleRelationshipTypes.filter((typeOption) =>
     relationshipGroup ? typeOption.family === relationshipGroup : true,
   );
+  const relationshipFamilyLabelByValue = useMemo(
+    () => new Map(relationshipFamilies.map((relationshipFamily) => [relationshipFamily.value, relationshipFamily.label])),
+    [relationshipFamilies],
+  );
 
   const selectedRelationshipGroupIsAvailable =
     relationshipGroup === "" || availableRelationshipGroups.includes(relationshipGroup);
@@ -159,6 +164,17 @@ export function RelationshipForm({
 
     return options;
   }, [groupedRelationshipTypes, relationshipGroup, selectedRelationshipType]);
+  const relationshipGroupOptionValues = useMemo(() => {
+    const availableGroupValues = relationshipFamilies
+      .map((relationshipFamily) => relationshipFamily.value)
+      .filter((relationshipFamilyValue) => relationshipGroupOptions.includes(relationshipFamilyValue));
+
+    const remainingGroupValues = relationshipGroupOptions.filter(
+      (relationshipFamilyValue) => !availableGroupValues.includes(relationshipFamilyValue),
+    );
+
+    return [...availableGroupValues, ...remainingGroupValues];
+  }, [relationshipFamilies, relationshipGroupOptions]);
 
   const sourceEntityOptions = useMemo(() => {
     const compatibleEntities = entities.filter((entity) => {
@@ -300,7 +316,7 @@ export function RelationshipForm({
           value={relationshipGroup}
           onChange={(event) => {
             setHasUserChangedRelationshipTypeConstraints(true);
-            const nextRelationshipGroup = event.target.value as RelationshipFamilyValue | "";
+            const nextRelationshipGroup = event.target.value;
             setRelationshipGroup(nextRelationshipGroup);
 
             const selectedTypeStillMatches = compatibleRelationshipTypes.some(
@@ -313,9 +329,9 @@ export function RelationshipForm({
           }}
         >
           <option value="">Select relationship group</option>
-          {relationshipGroupOptions.map((groupOption) => (
+          {relationshipGroupOptionValues.map((groupOption) => (
             <option key={groupOption} value={groupOption}>
-              {formatRelationshipFamilyLabel(groupOption)}
+              {relationshipFamilyLabelByValue.get(groupOption) ?? selectedRelationshipType?.familyLabel ?? groupOption}
               {groupOption === relationshipGroup && !selectedRelationshipGroupIsAvailable
                 ? " (saved, now incompatible)"
                 : ""}

@@ -12,6 +12,7 @@ def test_relationship_routes_are_grouped_under_separate_tags() -> None:
         if isinstance(route, APIRoute)
     }
 
+    assert tagged_paths[("/relationship-families", frozenset({"GET"}))] == ("relationship-types",)
     assert tagged_paths[("/relationship-types", frozenset({"GET"}))] == ("relationship-types",)
     assert tagged_paths[("/campaigns/{campaign_id}/relationship-types", frozenset({"POST"}))] == (
         "relationship-types",

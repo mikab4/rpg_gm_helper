@@ -1,15 +1,3 @@
-export const RELATIONSHIP_FAMILY_OPTIONS = [
-  { label: "Family", value: "family" },
-  { label: "Romance", value: "romance" },
-  { label: "Social", value: "social" },
-  { label: "Organization", value: "organization" },
-  { label: "Political", value: "political" },
-  { label: "Location", value: "location" },
-  { label: "Conflict", value: "conflict" },
-  { label: "Influence", value: "influence" },
-  { label: "Event", value: "event" },
-] as const;
-
 export const RELATIONSHIP_LIFECYCLE_STATUS_OPTIONS = [
   { label: "Current", value: "current" },
   { label: "Former", value: "former" },
@@ -25,14 +13,11 @@ export const RELATIONSHIP_CERTAINTY_STATUS_OPTIONS = [
   { label: "Rumored", value: "rumored" },
 ] as const;
 
-export type RelationshipFamilyValue = (typeof RELATIONSHIP_FAMILY_OPTIONS)[number]["value"];
+export type RelationshipFamilyValue = string;
 export type RelationshipLifecycleStatusValue = (typeof RELATIONSHIP_LIFECYCLE_STATUS_OPTIONS)[number]["value"];
 export type RelationshipVisibilityStatusValue = (typeof RELATIONSHIP_VISIBILITY_STATUS_OPTIONS)[number]["value"];
 export type RelationshipCertaintyStatusValue = (typeof RELATIONSHIP_CERTAINTY_STATUS_OPTIONS)[number]["value"];
 
-const RELATIONSHIP_FAMILY_VALUES = new Set<RelationshipFamilyValue>(
-  RELATIONSHIP_FAMILY_OPTIONS.map((option) => option.value),
-);
 const RELATIONSHIP_LIFECYCLE_STATUS_VALUES = new Set<RelationshipLifecycleStatusValue>(
   RELATIONSHIP_LIFECYCLE_STATUS_OPTIONS.map((option) => option.value),
 );
@@ -42,10 +27,6 @@ const RELATIONSHIP_VISIBILITY_STATUS_VALUES = new Set<RelationshipVisibilityStat
 const RELATIONSHIP_CERTAINTY_STATUS_VALUES = new Set<RelationshipCertaintyStatusValue>(
   RELATIONSHIP_CERTAINTY_STATUS_OPTIONS.map((option) => option.value),
 );
-
-export function isRelationshipFamilyValue(relationshipFamily: string): relationshipFamily is RelationshipFamilyValue {
-  return RELATIONSHIP_FAMILY_VALUES.has(relationshipFamily as RelationshipFamilyValue);
-}
 
 export function isRelationshipLifecycleStatusValue(
   relationshipLifecycleStatus: string,
@@ -66,12 +47,9 @@ export function isRelationshipCertaintyStatusValue(
 }
 
 export function formatRelationshipFamilyLabel(relationshipFamily: string): string {
-  return (
-    RELATIONSHIP_FAMILY_OPTIONS.find((option) => option.value === relationshipFamily)?.label ??
-    relationshipFamily
-      .split(/[_-]/)
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
-  );
+  return relationshipFamily
+    .split(/[_-]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }

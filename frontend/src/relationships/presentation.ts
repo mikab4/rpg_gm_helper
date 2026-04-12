@@ -1,6 +1,5 @@
 import type { Entity } from "../types/entities";
 import type { Relationship } from "../types/relationships";
-import { formatRelationshipFamilyLabel } from "./domain";
 
 const IMPORTANT_RELATIONSHIP_TYPES = [
   "governs",
@@ -82,7 +81,7 @@ export function groupEntityRelationships(
       continue;
     }
 
-    const familyLabel = formatRelationshipFamilyLabel(relationship.relationshipFamily);
+    const familyLabel = relationship.relationshipFamilyLabel;
     const existingFamilyGroup = groupedRelationships.get(familyLabel) ?? [];
     existingFamilyGroup.push(buildRelationshipPhrase(relationship, entitiesById, entityId));
     groupedRelationships.set(familyLabel, existingFamilyGroup);

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.enums import EntityType, RelationshipFamily
+from app.enums import EntityType, RelationshipFamily, format_relationship_family_label
 from app.schemas import RelationshipTypeResponse
 
 
@@ -34,6 +34,7 @@ def build_relationship_type_response(
             "key": relationship_type_source.key,
             "label": relationship_type_source.label,
             "family": relationship_type_source.family,
+            "family_label": format_relationship_family_label(relationship_type_source.family),
             "reverse_label": (
                 relationship_type_source.label
                 if relationship_type_source.is_symmetric

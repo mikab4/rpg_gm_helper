@@ -7,7 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db_session
-from app.schemas import RelationshipTypeCreate, RelationshipTypeResponse, RelationshipTypeUpdate
+from app.enums import RelationshipFamily
+from app.schemas import (
+    RelationshipFamilyOptionResponse,
+    RelationshipTypeCreate,
+    RelationshipTypeResponse,
+    RelationshipTypeUpdate,
+)
 from app.services import ConflictError, NotFoundError, relationship_type_service
 from app.services.relationship_type_mapper import build_relationship_type_response
 
@@ -35,6 +41,14 @@ def list_relationship_types(
             is_custom=listed_relationship_type.is_custom,
         )
         for listed_relationship_type in listed_relationship_types
+    ]
+
+
+@router.get("/relationship-families", response_model=list[RelationshipFamilyOptionResponse])
+def list_relationship_families() -> list[RelationshipFamilyOptionResponse]:
+    return [
+        RelationshipFamilyOptionResponse.from_relationship_family(relationship_family)
+        for relationship_family in RelationshipFamily
     ]
 
 

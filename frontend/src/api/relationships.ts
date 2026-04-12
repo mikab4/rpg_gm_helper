@@ -1,7 +1,6 @@
 import { apiRequest } from "./client";
 import {
   isRelationshipCertaintyStatusValue,
-  isRelationshipFamilyValue,
   isRelationshipLifecycleStatusValue,
   isRelationshipVisibilityStatusValue,
   type RelationshipFamilyValue,
@@ -30,7 +29,8 @@ function parseRelationship(payload: unknown): Relationship {
     typeof payload.relationship_type !== "string" ||
     !("relationship_family" in payload) ||
     typeof payload.relationship_family !== "string" ||
-    !isRelationshipFamilyValue(payload.relationship_family) ||
+    !("relationship_family_label" in payload) ||
+    typeof payload.relationship_family_label !== "string" ||
     !("forward_label" in payload) ||
     typeof payload.forward_label !== "string" ||
     !("reverse_label" in payload) ||
@@ -72,6 +72,7 @@ function parseRelationship(payload: unknown): Relationship {
     targetEntityId: payload.target_entity_id,
     relationshipType: payload.relationship_type,
     relationshipFamily: payload.relationship_family,
+    relationshipFamilyLabel: payload.relationship_family_label,
     forwardLabel: payload.forward_label,
     reverseLabel: payload.reverse_label,
     isSymmetric: payload.is_symmetric,

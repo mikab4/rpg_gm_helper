@@ -6,7 +6,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator
 
-from app.enums import EntityType, RelationshipFamily, normalize_str_enum_value
+from app.enums import (
+    EntityType,
+    RelationshipFamily,
+    format_relationship_family_label,
+    normalize_str_enum_value,
+)
 from app.schemas.entity_types import validate_entity_type
 from app.schemas.types import NonBlankString, OptionalNonBlankString
 
@@ -101,6 +106,7 @@ class RelationshipTypeResponse(BaseModel):
     key: str
     label: str
     family: RelationshipFamily
+    family_label: str
     reverse_label: str | None
     is_symmetric: bool
     allowed_source_types: list[EntityType]
@@ -116,3 +122,22 @@ class RelationshipTypeResponse(BaseModel):
     @field_serializer("allowed_source_types", "allowed_target_types")
     def serialize_allowed_entity_types(self, entity_types: list[EntityType]) -> list[str]:
         return [entity_type.value for entity_type in entity_types]
+
+
+class RelationshipFamilyOptionResponse(BaseModel):
+    value: RelationshipFamily
+    label: str
+
+    @field_serializer("value")
+    def serialize_value(self, relationship_family: RelationshipFamily) -> str:
+        return relationship_family.value
+
+    @classmethod
+    def from_relationship_family(
+        cls,
+        relationship_family: RelationshipFamily,
+    ) -> "RelationshipFamilyOptionResponse":
+        return cls(
+            value=relationship_family,
+            label=format_relationship_family_label(relationship_family),
+        )

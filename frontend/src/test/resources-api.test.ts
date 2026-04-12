@@ -133,6 +133,7 @@ describe("frontend resource APIs", () => {
             key: "bodyguard_of",
             label: "bodyguard of",
             family: "social",
+            family_label: "Social",
             reverse_label: "guarded by",
             is_symmetric: false,
             allowed_source_types: ["person"],
@@ -154,6 +155,7 @@ describe("frontend resource APIs", () => {
         key: "bodyguard_of",
         label: "bodyguard of",
         family: "social",
+        familyLabel: "Social",
         reverseLabel: "guarded by",
         isCustom: true,
       },
@@ -175,6 +177,7 @@ describe("frontend resource APIs", () => {
               key: "bodyguard_of",
               label: "bodyguard of",
               family: "social",
+              family_label: "Social",
               reverse_label: "guarded by",
               is_symmetric: false,
               allowed_source_types: [42],
@@ -190,5 +193,29 @@ describe("frontend resource APIs", () => {
     const { listRelationshipTypes } = await import("../api/relationshipTypes");
 
     await expect(listRelationshipTypes("campaign-1")).rejects.toThrow("Invalid relationship type response payload.");
+  });
+
+  it("lists relationship families from the backend metadata endpoint", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve([
+          { value: "family", label: "Family" },
+          { value: "organization", label: "Organization" },
+        ]),
+    });
+
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { listRelationshipFamilies } = await import("../api/relationshipFamilies");
+
+    await expect(listRelationshipFamilies()).resolves.toEqual([
+      { value: "family", label: "Family" },
+      { value: "organization", label: "Organization" },
+    ]);
+
+    const firstCall = fetchSpy.mock.calls[0] as [string, RequestInit] | undefined;
+    expect(firstCall?.[0]).toBe("http://example.test/api/relationship-families");
   });
 });

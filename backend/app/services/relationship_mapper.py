@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.enums import format_relationship_family_label
 from app.models import Relationship
 from app.services.relationship_catalog import RelationshipTypeDescriptor
-from app.services.relationship_descriptor_resolver import build_descriptor_map, get_descriptor_or_raise
+from app.services.relationship_descriptor_resolver import (
+    build_descriptor_map,
+    get_descriptor_or_raise,
+)
 
 
 def build_relationship_response_payload(
@@ -55,6 +59,7 @@ def _build_relationship_response_payload_from_descriptor(
         "target_entity_id": relationship.target_entity_id,
         "relationship_type": relationship.relationship_type,
         "relationship_family": relationship_descriptor.family,
+        "relationship_family_label": format_relationship_family_label(relationship_descriptor.family),
         "forward_label": relationship_descriptor.label,
         "reverse_label": relationship_descriptor.reverse_label,
         "is_symmetric": relationship_descriptor.is_symmetric,

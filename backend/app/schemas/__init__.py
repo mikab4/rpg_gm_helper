@@ -2,6 +2,7 @@ from app.schemas.campaigns import CampaignCreate, CampaignResponse, CampaignUpda
 from app.schemas.entities import EntityCreate, EntityResponse, EntityUpdate
 from app.schemas.owners import OwnerResponse
 from app.schemas.relationship_types import (
+    RelationshipFamilyOptionResponse,
     RelationshipTypeCreate,
     RelationshipTypeResponse,
     RelationshipTypeUpdate,
@@ -16,6 +17,7 @@ __all__ = [
     "EntityResponse",
     "EntityUpdate",
     "OwnerResponse",
+    "RelationshipFamilyOptionResponse",
     "RelationshipCreate",
     "RelationshipResponse",
     "RelationshipTypeCreate",

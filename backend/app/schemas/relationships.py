@@ -169,6 +169,7 @@ class RelationshipResponse(BaseModel):
     target_entity_id: UUID
     relationship_type: str
     relationship_family: RelationshipFamily
+    relationship_family_label: str
     forward_label: str
     reverse_label: str
     is_symmetric: bool

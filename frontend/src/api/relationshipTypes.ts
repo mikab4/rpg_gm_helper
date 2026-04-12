@@ -1,6 +1,5 @@
 import { apiRequest } from "./client";
 import { isEntityTypeValue } from "../entities/entityTypes";
-import { isRelationshipFamilyValue } from "../relationships/domain";
 import type { RelationshipType, RelationshipTypeCreate, RelationshipTypeUpdate } from "../types/relationshipTypes";
 
 function parseRelationshipType(payload: unknown): RelationshipType {
@@ -13,7 +12,8 @@ function parseRelationshipType(payload: unknown): RelationshipType {
     typeof payload.label !== "string" ||
     !("family" in payload) ||
     typeof payload.family !== "string" ||
-    !isRelationshipFamilyValue(payload.family) ||
+    !("family_label" in payload) ||
+    typeof payload.family_label !== "string" ||
     !("reverse_label" in payload) ||
     !(typeof payload.reverse_label === "string" || payload.reverse_label === null) ||
     !("is_symmetric" in payload) ||
@@ -43,6 +43,7 @@ function parseRelationshipType(payload: unknown): RelationshipType {
     allowed_target_types: RelationshipType["allowedTargetTypes"];
     created_at: string | null;
     family: RelationshipType["family"];
+    family_label: string;
     is_custom: boolean;
     is_symmetric: boolean;
     key: string;
@@ -60,6 +61,7 @@ function parseRelationshipType(payload: unknown): RelationshipType {
     key: typedPayload.key,
     label: typedPayload.label,
     family: typedPayload.family,
+    familyLabel: typedPayload.family_label,
     reverseLabel: typedPayload.reverse_label,
     isSymmetric: typedPayload.is_symmetric,
     allowedSourceTypes: typedPayload.allowed_source_types,

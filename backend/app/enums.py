@@ -28,6 +28,15 @@ class RelationshipFamily(StrEnum):
     EVENT = "event"
 
 
+def format_relationship_family_label(relationship_family: "RelationshipFamily | str") -> str:
+    raw_value = (
+        relationship_family.value
+        if isinstance(relationship_family, RelationshipFamily)
+        else relationship_family
+    )
+    return " ".join(word.capitalize() for word in raw_value.split("_"))
+
+
 class RelationshipLifecycleStatus(StrEnum):
     CURRENT = "current"
     FORMER = "former"

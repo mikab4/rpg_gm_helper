@@ -1,14 +1,11 @@
-import { useMemo, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from "react";
 
 import { ENTITY_TYPE_OPTIONS, formatEntityTypeLabel, type EntityTypeValue } from "../entities/entityTypes";
-import {
-  RELATIONSHIP_FAMILY_OPTIONS,
-  formatRelationshipFamilyLabel,
-  type RelationshipFamilyValue,
-} from "../relationships/domain";
+import type { RelationshipFamilyOption } from "../types/relationshipFamilies";
 import type { RelationshipType, RelationshipTypeCreate, RelationshipTypeUpdate } from "../types/relationshipTypes";
 
 type RelationshipTypeManagerProps = {
+  relationshipFamilies: RelationshipFamilyOption[];
   relationshipTypes: RelationshipType[];
   submitError: string | null;
   submitting: boolean;
@@ -18,6 +15,7 @@ type RelationshipTypeManagerProps = {
 };
 
 export function RelationshipTypeManager({
+  relationshipFamilies,
   relationshipTypes,
   submitError,
   submitting,
@@ -25,8 +23,9 @@ export function RelationshipTypeManager({
   onDelete,
   onUpdate,
 }: RelationshipTypeManagerProps) {
+  const defaultRelationshipFamily = relationshipFamilies[0]?.value ?? "";
   const [label, setLabel] = useState("");
-  const [family, setFamily] = useState<RelationshipFamilyValue>("social");
+  const [family, setFamily] = useState(defaultRelationshipFamily);
   const [reverseLabel, setReverseLabel] = useState("");
   const [isSymmetric, setIsSymmetric] = useState(false);
   const [allowedSourceTypes, setAllowedSourceTypes] = useState<EntityTypeValue[]>(["person"]);
@@ -52,6 +51,12 @@ export function RelationshipTypeManager({
     [relationshipTypes],
   );
 
+  useEffect(() => {
+    if (!family && defaultRelationshipFamily) {
+      setFamily(defaultRelationshipFamily);
+    }
+  }, [defaultRelationshipFamily, family]);
+
   async function handleCreate(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -74,7 +79,7 @@ export function RelationshipTypeManager({
     setAllowedTargetTypes(["person"]);
     setSelectedAllowedSourceType("person");
     setSelectedAllowedTargetType("person");
-    setFamily("social");
+    setFamily(defaultRelationshipFamily);
     setIsSymmetric(false);
   }
 
@@ -122,10 +127,10 @@ export function RelationshipTypeManager({
           <select
             value={family}
             onChange={(event) => {
-              setFamily(event.target.value as RelationshipFamilyValue);
+              setFamily(event.target.value);
             }}
           >
-            {RELATIONSHIP_FAMILY_OPTIONS.map((familyOption) => (
+            {relationshipFamilies.map((familyOption) => (
               <option key={familyOption.value} value={familyOption.value}>
                 {familyOption.label}
               </option>
@@ -256,8 +261,7 @@ export function RelationshipTypeManager({
             <div className="relationship-type-copy">
               <strong>{relationshipType.label}</strong>
               <span>
-                {formatRelationshipFamilyLabel(relationshipType.family)} ·{" "}
-                {relationshipType.isCustom ? "Custom" : "Built In"}
+                {relationshipType.familyLabel} · {relationshipType.isCustom ? "Custom" : "Built In"}
               </span>
               <span>
                 {relationshipType.allowedSourceTypes.join(", ")} {"->"} {relationshipType.allowedTargetTypes.join(", ")}

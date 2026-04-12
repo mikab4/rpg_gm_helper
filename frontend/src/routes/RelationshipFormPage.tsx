@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { getCampaign } from "../api/campaigns";
 import { listCampaignEntities } from "../api/entities";
+import { listRelationshipFamilies } from "../api/relationshipFamilies";
 import { getRelationship, createRelationship, updateRelationship, deleteRelationship } from "../api/relationships";
 import { listRelationshipTypes } from "../api/relationshipTypes";
 import { RelationshipForm, type RelationshipFormValues } from "../components/RelationshipForm";
@@ -11,6 +12,7 @@ import { RequestStateBlock } from "../components/RequestStateBlock";
 import { SectionPanel } from "../components/SectionPanel";
 import type { Campaign } from "../types/campaigns";
 import type { Entity } from "../types/entities";
+import type { RelationshipFamilyOption } from "../types/relationshipFamilies";
 import type { Relationship } from "../types/relationships";
 import type { RelationshipType } from "../types/relationshipTypes";
 
@@ -24,6 +26,7 @@ type RelationshipFormPageState =
   | {
       campaign: Campaign;
       entities: Entity[];
+      relationshipFamilies: RelationshipFamilyOption[];
       relationship: Relationship | null;
       relationshipTypes: RelationshipType[];
       status: "ready";
@@ -47,9 +50,10 @@ export function RelationshipFormPage({ mode }: RelationshipFormPageProps) {
       }
 
       try {
-        const [campaign, entities, relationshipTypes, relationship] = await Promise.all([
+        const [campaign, entities, relationshipFamilies, relationshipTypes, relationship] = await Promise.all([
           getCampaign(campaignId, { signal: abortController.signal }),
           listCampaignEntities(campaignId, undefined, abortController.signal),
+          listRelationshipFamilies(),
           listRelationshipTypes(campaignId),
           mode === "edit" && relationshipId
             ? getRelationship(campaignId, relationshipId, abortController.signal)
@@ -59,6 +63,7 @@ export function RelationshipFormPage({ mode }: RelationshipFormPageProps) {
         setPageState({
           campaign,
           entities,
+          relationshipFamilies,
           relationship,
           relationshipTypes,
           status: "ready",
@@ -185,6 +190,7 @@ export function RelationshipFormPage({ mode }: RelationshipFormPageProps) {
             targetEntityId: initialRelationship?.targetEntityId ?? "",
             visibilityStatus: initialRelationship?.visibilityStatus ?? "public",
           }}
+          relationshipFamilies={pageState.relationshipFamilies}
           relationshipTypes={pageState.relationshipTypes}
           submitError={submitError}
           submitLabel={mode === "edit" ? "Save Relationship" : "Create Relationship"}

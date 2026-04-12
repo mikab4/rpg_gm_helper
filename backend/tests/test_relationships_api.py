@@ -40,6 +40,18 @@ def test_list_relationship_types_includes_built_in_and_custom_types(
     listed_type_keys = {listed_type["key"] for listed_type in response.json()}
     assert "sibling_of" in listed_type_keys
     assert "bodyguard_of" in listed_type_keys
+    assert next(listed_type for listed_type in response.json() if listed_type["key"] == "bodyguard_of")["family_label"] == "Social"
+
+
+def test_list_relationship_families_returns_backend_canonical_family_metadata(
+    api_request,
+) -> None:
+    response = api_request("GET", "/api/relationship-families")
+
+    assert response.status_code == 200
+    assert response.json()[0] == {"label": "Family", "value": "family"}
+    assert {"label": "Organization", "value": "organization"} in response.json()
+    assert {"label": "Influence", "value": "influence"} in response.json()
 
 
 def test_create_custom_relationship_type_returns_created_record(
@@ -63,6 +75,7 @@ def test_create_custom_relationship_type_returns_created_record(
     assert response.json()["key"] == "bodyguard_of"
     assert response.json()["label"] == "bodyguard of"
     assert response.json()["family"] == "social"
+    assert response.json()["family_label"] == "Social"
     assert response.json()["is_custom"] is True
 
 
@@ -250,6 +263,7 @@ def test_create_relationship_returns_created_record_with_catalog_metadata(
     assert response.status_code == 201
     assert response.json()["relationship_type"] == "spouse_of"
     assert response.json()["relationship_family"] == "romance"
+    assert response.json()["relationship_family_label"] == "Romance"
     assert response.json()["forward_label"] == "spouse of"
     assert response.json()["reverse_label"] == "spouse of"
     assert response.json()["visibility_status"] == "secret"

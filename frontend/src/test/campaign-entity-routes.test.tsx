@@ -380,6 +380,7 @@ describe("campaign and entity frontend routes", () => {
                 target_entity_id: "entity-2",
                 relationship_type: "governs",
                 relationship_family: "political",
+                relationship_family_label: "Political",
                 forward_label: "governs",
                 reverse_label: "governed by",
                 is_symmetric: false,
@@ -401,6 +402,7 @@ describe("campaign and entity frontend routes", () => {
                 target_entity_id: "entity-2",
                 relationship_type: "located_in",
                 relationship_family: "location",
+                relationship_family_label: "Location",
                 forward_label: "is located in",
                 reverse_label: "contains",
                 is_symmetric: false,
@@ -422,6 +424,7 @@ describe("campaign and entity frontend routes", () => {
                 target_entity_id: "entity-4",
                 relationship_type: "leader_of",
                 relationship_family: "political",
+                relationship_family_label: "Political",
                 forward_label: "leads",
                 reverse_label: "is led by",
                 is_symmetric: false,
@@ -450,6 +453,7 @@ describe("campaign and entity frontend routes", () => {
                 key: "governs",
                 label: "governs",
                 family: "political",
+                family_label: "Political",
                 reverse_label: "governed by",
                 is_symmetric: false,
                 allowed_source_types: ["person", "organization"],
@@ -576,6 +580,19 @@ describe("campaign and entity frontend routes", () => {
         );
       }
 
+      if (requestUrl.endsWith("/relationship-families")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              { value: "family", label: "Family" },
+              { value: "social", label: "Social" },
+              { value: "political", label: "Political" },
+            ],
+          }),
+        );
+      }
+
       if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
         return Promise.resolve(
           jsonResponse({
@@ -585,6 +602,7 @@ describe("campaign and entity frontend routes", () => {
                 key: "governs",
                 label: "governs",
                 family: "political",
+                family_label: "Political",
                 reverse_label: "governed by",
                 is_symmetric: false,
                 allowed_source_types: ["person", "organization"],
@@ -597,6 +615,7 @@ describe("campaign and entity frontend routes", () => {
                 key: "member_of",
                 label: "member of",
                 family: "social",
+                family_label: "Social",
                 reverse_label: "has member",
                 is_symmetric: false,
                 allowed_source_types: ["person"],
@@ -609,6 +628,7 @@ describe("campaign and entity frontend routes", () => {
                 key: "sibling_of",
                 label: "sibling of",
                 family: "family",
+                family_label: "Family",
                 reverse_label: "sibling of",
                 is_symmetric: true,
                 allowed_source_types: ["person"],
@@ -633,6 +653,7 @@ describe("campaign and entity frontend routes", () => {
               target_entity_id: "entity-2",
               relationship_type: "governs",
               relationship_family: "political",
+              relationship_family_label: "Political",
               forward_label: "governs",
               reverse_label: "governed by",
               is_symmetric: false,
@@ -780,6 +801,19 @@ describe("campaign and entity frontend routes", () => {
           );
         }
 
+        if (requestUrl.endsWith("/relationship-families")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                { value: "family", label: "Family" },
+                { value: "social", label: "Social" },
+                { value: "political", label: "Political" },
+              ],
+            }),
+          );
+        }
+
         if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
           return Promise.resolve(
             jsonResponse({
@@ -789,6 +823,7 @@ describe("campaign and entity frontend routes", () => {
                   key: "governs",
                   label: "governs",
                   family: "political",
+                  family_label: "Political",
                   reverse_label: "governed by",
                   is_symmetric: false,
                   allowed_source_types: ["person", "organization"],
@@ -813,6 +848,7 @@ describe("campaign and entity frontend routes", () => {
                 target_entity_id: "entity-2",
                 relationship_type: "governs",
                 relationship_family: "political",
+                relationship_family_label: "Political",
                 forward_label: "governs",
                 reverse_label: "governed by",
                 is_symmetric: false,
@@ -917,6 +953,19 @@ describe("campaign and entity frontend routes", () => {
           );
         }
 
+        if (requestUrl.endsWith("/relationship-families")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                { value: "family", label: "Family" },
+                { value: "social", label: "Social" },
+                { value: "political", label: "Political" },
+              ],
+            }),
+          );
+        }
+
         if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
           return Promise.resolve(
             jsonResponse({
@@ -926,6 +975,7 @@ describe("campaign and entity frontend routes", () => {
                   key: "bodyguard_of",
                   label: "bodyguard of",
                   family: "social",
+                  family_label: "Social",
                   reverse_label: "guarded by",
                   is_symmetric: false,
                   allowed_source_types: ["person"],
@@ -1473,6 +1523,7 @@ describe("campaign and entity frontend routes", () => {
                 key: "bodyguard_of",
                 label: "bodyguard of",
                 family: "social",
+                family_label: "Social",
                 reverse_label: "guarded by",
                 is_symmetric: false,
                 allowed_source_types: ["person"],
@@ -1508,6 +1559,7 @@ describe("campaign and entity frontend routes", () => {
                 key: "bodyguard_of",
                 label: parsedBody.label ?? "bodyguard of",
                 family: "social",
+                family_label: "Social",
                 reverse_label: "guarded by",
                 is_symmetric: false,
                 allowed_source_types: ["person"],
@@ -1516,6 +1568,19 @@ describe("campaign and entity frontend routes", () => {
                 created_at: "2026-04-12T12:00:00Z",
                 updated_at: "2026-04-12T12:00:00Z",
               },
+            }),
+          );
+        }
+
+        if (requestUrl.endsWith("/relationship-families")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                { value: "family", label: "Family" },
+                { value: "social", label: "Social" },
+                { value: "political", label: "Political" },
+              ],
             }),
           );
         }
@@ -1530,6 +1595,7 @@ describe("campaign and entity frontend routes", () => {
                       key: "bodyguard_of",
                       label: "bodyguard of",
                       family: "social",
+                      family_label: "Social",
                       reverse_label: "guarded by",
                       is_symmetric: false,
                       allowed_source_types: ["person"],
@@ -1542,6 +1608,7 @@ describe("campaign and entity frontend routes", () => {
                       key: "governs",
                       label: "governs",
                       family: "political",
+                      family_label: "Political",
                       reverse_label: "governed by",
                       is_symmetric: false,
                       allowed_source_types: ["person", "organization"],
@@ -1556,6 +1623,7 @@ describe("campaign and entity frontend routes", () => {
                       key: "governs",
                       label: "governs",
                       family: "political",
+                      family_label: "Political",
                       reverse_label: "governed by",
                       is_symmetric: false,
                       allowed_source_types: ["person", "organization"],
