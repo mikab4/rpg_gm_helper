@@ -14,7 +14,7 @@ type RelationshipTypeManagerProps = {
   submitting: boolean;
   onCreate: (relationshipTypeCreate: RelationshipTypeCreate) => Promise<boolean>;
   onDelete: (relationshipTypeKey: string) => Promise<void>;
-  onUpdate: (relationshipTypeKey: string, relationshipTypeUpdate: RelationshipTypeUpdate) => Promise<void>;
+  onUpdate: (relationshipTypeKey: string, relationshipTypeUpdate: RelationshipTypeUpdate) => Promise<boolean>;
 };
 
 export function RelationshipTypeManager({
@@ -79,7 +79,12 @@ export function RelationshipTypeManager({
   }
 
   async function handleUpdate(relationshipTypeKey: string) {
-    await onUpdate(relationshipTypeKey, { label: editingLabel.trim() });
+    const updateSucceeded = await onUpdate(relationshipTypeKey, { label: editingLabel.trim() });
+
+    if (!updateSucceeded) {
+      return;
+    }
+
     setEditingKey(null);
     setEditingLabel("");
   }

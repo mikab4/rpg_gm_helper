@@ -111,9 +111,12 @@ export function RelationshipTypeManagementPage() {
     }
   }
 
-  async function handleUpdate(relationshipTypeKey: string, relationshipTypeUpdate: RelationshipTypeUpdate) {
+  async function handleUpdate(
+    relationshipTypeKey: string,
+    relationshipTypeUpdate: RelationshipTypeUpdate,
+  ): Promise<boolean> {
     if (!campaignId) {
-      return;
+      return false;
     }
 
     setSubmitting(true);
@@ -122,8 +125,10 @@ export function RelationshipTypeManagementPage() {
     try {
       await updateRelationshipType(campaignId, relationshipTypeKey, relationshipTypeUpdate);
       await reloadRelationshipTypes();
+      return true;
     } catch (error) {
       setSubmitError(getRelationshipTypeErrorMessage(error));
+      return false;
     } finally {
       setSubmitting(false);
     }

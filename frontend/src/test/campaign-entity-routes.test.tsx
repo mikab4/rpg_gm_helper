@@ -1381,6 +1381,41 @@ describe("campaign and entity frontend routes", () => {
           );
         }
 
+        if (requestUrl.endsWith("/campaigns/campaign-1/relationship-types/bodyguard_of") && init?.method === "PATCH") {
+          const requestBody = typeof init.body === "string" ? init.body : "";
+          const parsedBody = JSON.parse(requestBody) as { label?: string };
+
+          if (parsedBody.label === "governs") {
+            return Promise.resolve(
+              jsonResponse({
+                ok: false,
+                status: 422,
+                body: {
+                  detail: "Relationship type label already exists for this campaign.",
+                },
+              }),
+            );
+          }
+
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                key: "bodyguard_of",
+                label: parsedBody.label ?? "bodyguard of",
+                family: "social",
+                reverse_label: "guarded by",
+                is_symmetric: false,
+                allowed_source_types: ["person"],
+                allowed_target_types: ["person", "organization"],
+                is_custom: true,
+                created_at: "2026-04-12T12:00:00Z",
+                updated_at: "2026-04-12T12:00:00Z",
+              },
+            }),
+          );
+        }
+
         if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
           return Promise.resolve(
             jsonResponse({
@@ -1477,6 +1512,19 @@ describe("campaign and entity frontend routes", () => {
       const typeCards = screen.getAllByRole("article");
       expect(within(typeCards[0]).getByText("bodyguard of")).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const renameInput = screen.getByDisplayValue("bodyguard of");
+    fireEvent.change(renameInput, {
+      target: { value: "governs" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("A relationship type with that label already exists in this campaign."),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("governs")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
   it("renders the entity full profile on the main entity route", async () => {
