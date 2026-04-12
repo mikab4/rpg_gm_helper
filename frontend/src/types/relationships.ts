@@ -1,16 +1,23 @@
+import type {
+  RelationshipCertaintyStatusValue,
+  RelationshipFamilyValue,
+  RelationshipLifecycleStatusValue,
+  RelationshipVisibilityStatusValue,
+} from "../relationships/domain";
+
 export type Relationship = {
   id: string;
   campaignId: string;
   sourceEntityId: string;
   targetEntityId: string;
   relationshipType: string;
-  relationshipFamily: string;
+  relationshipFamily: RelationshipFamilyValue;
   forwardLabel: string;
   reverseLabel: string;
   isSymmetric: boolean;
-  lifecycleStatus: string;
-  visibilityStatus: string;
-  certaintyStatus: string;
+  lifecycleStatus: RelationshipLifecycleStatusValue;
+  visibilityStatus: RelationshipVisibilityStatusValue;
+  certaintyStatus: RelationshipCertaintyStatusValue;
   notes: string | null;
   confidence: number | null;
   sourceDocumentId: string | null;
@@ -24,16 +31,16 @@ export type RelationshipCreate = {
   sourceEntityId: string;
   targetEntityId: string;
   relationshipType: string;
-  lifecycleStatus: string;
-  visibilityStatus: string;
-  certaintyStatus: string;
+  lifecycleStatus: RelationshipLifecycleStatusValue;
+  visibilityStatus: RelationshipVisibilityStatusValue;
+  certaintyStatus: RelationshipCertaintyStatusValue;
   notes: string | null;
 };
 
 export type RelationshipUpdate = {
   relationshipType?: string;
-  lifecycleStatus?: string;
-  visibilityStatus?: string;
-  certaintyStatus?: string;
+  lifecycleStatus?: RelationshipLifecycleStatusValue;
+  visibilityStatus?: RelationshipVisibilityStatusValue;
+  certaintyStatus?: RelationshipCertaintyStatusValue;
   notes?: string | null;
 };

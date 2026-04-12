@@ -1,5 +1,6 @@
 import { useMemo, useState, type SyntheticEvent } from "react";
 
+import { ENTITY_TYPE_OPTIONS, isEntityTypeValue, type EntityTypeValue } from "../entities/entityTypes";
 import type {
   EntityTypeCompatibilityReport,
   EntityTypeMigrationMapping,
@@ -14,45 +15,7 @@ type CompatibilityMigrationPanelProps = {
   onSubmit: (mappings: EntityTypeMigrationMapping[]) => Promise<void>;
 };
 
-const COMPATIBILITY_ENTITY_TYPE_OPTIONS = [
-  {
-    description: "People, characters, and named individuals",
-    label: "Person",
-    value: "person",
-  },
-  {
-    description: "Places, regions, and physical settings",
-    label: "Location",
-    value: "location",
-  },
-  {
-    description: "Groups, factions, and institutions",
-    label: "Organization",
-    value: "organization",
-  },
-  {
-    description: "Objects, artifacts, and tangible things",
-    label: "Item",
-    value: "item",
-  },
-  {
-    description: "Battles, rituals, and significant happenings",
-    label: "Event",
-    value: "event",
-  },
-  {
-    description: "Gods, spirits, and divine powers",
-    label: "Deity",
-    value: "deity",
-  },
-  {
-    description: "Anything that does not fit the main categories cleanly",
-    label: "Other",
-    value: "other",
-  },
-] as const;
-
-const MIGRATION_VALUE_HINTS: Record<string, string> = {
+const MIGRATION_VALUE_HINTS: Record<EntityTypeValue, string> = {
   deity: "Using Deity keeps divine figures separate from ordinary characters in relationship views.",
   event: "Using Event helps the app connect causes, outcomes, and participants more clearly.",
   item: "Using Item makes artifacts and objects easier to track across ownership and discovery relationships.",
@@ -62,12 +25,12 @@ const MIGRATION_VALUE_HINTS: Record<string, string> = {
   person: "Using Person helps the app track social, family, and political relationships more accurately.",
 };
 
-function getMigrationHint(selectedEntityType: string): string {
+function getMigrationHint(selectedEntityType: EntityTypeValue | ""): string {
   if (!selectedEntityType) {
     return "Choosing the best match now gives the app a clearer foundation for future relationship tracking.";
   }
 
-  return MIGRATION_VALUE_HINTS[selectedEntityType] ?? MIGRATION_VALUE_HINTS.other;
+  return MIGRATION_VALUE_HINTS[selectedEntityType];
 }
 
 function describeRawVariants(rawVariants: string[]): string | null {
@@ -97,7 +60,7 @@ export function CompatibilityMigrationPanel({
   submitting,
   onSubmit,
 }: CompatibilityMigrationPanelProps) {
-  const [mappingByLegacyType, setMappingByLegacyType] = useState<Record<string, string>>(() =>
+  const [mappingByLegacyType, setMappingByLegacyType] = useState<Record<string, EntityTypeValue | "">>(() =>
     Object.fromEntries(report.issues.map((issue) => [issue.legacyType, ""])),
   );
   const [formError, setFormError] = useState<string | null>(null);
@@ -116,12 +79,19 @@ export function CompatibilityMigrationPanel({
     }
 
     setFormError(null);
-    await onSubmit(
-      report.issues.map((issue) => ({
+    const migrationMappings: EntityTypeMigrationMapping[] = report.issues.map((issue) => {
+      const targetType = mappingByLegacyType[issue.legacyType];
+      if (!targetType) {
+        throw new Error("Missing entity type migration target after validation.");
+      }
+
+      return {
         legacyType: issue.legacyType,
-        targetType: mappingByLegacyType[issue.legacyType],
-      })),
-    );
+        targetType,
+      };
+    });
+
+    await onSubmit(migrationMappings);
   }
 
   return (
@@ -158,14 +128,15 @@ export function CompatibilityMigrationPanel({
                 aria-label={`Map ${issue.legacyType} to`}
                 value={mappingByLegacyType[issue.legacyType] ?? ""}
                 onChange={(event) => {
+                  const nextTargetType = event.target.value;
                   setMappingByLegacyType((currentMappings) => ({
                     ...currentMappings,
-                    [issue.legacyType]: event.target.value,
+                    [issue.legacyType]: isEntityTypeValue(nextTargetType) ? nextTargetType : "",
                   }));
                 }}
               >
                 <option value="">Select the best match...</option>
-                {COMPATIBILITY_ENTITY_TYPE_OPTIONS.map((entityTypeOption) => (
+                {ENTITY_TYPE_OPTIONS.map((entityTypeOption) => (
                   <option key={entityTypeOption.value} value={entityTypeOption.value}>
                     {entityTypeOption.label} ({entityTypeOption.description})
                   </option>

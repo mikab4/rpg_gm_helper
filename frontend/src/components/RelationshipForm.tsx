@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
 
+import {
+  RELATIONSHIP_CERTAINTY_STATUS_OPTIONS,
+  RELATIONSHIP_LIFECYCLE_STATUS_OPTIONS,
+  RELATIONSHIP_VISIBILITY_STATUS_OPTIONS,
+  formatRelationshipFamilyLabel,
+  type RelationshipFamilyValue,
+  type RelationshipCertaintyStatusValue,
+  type RelationshipLifecycleStatusValue,
+  type RelationshipVisibilityStatusValue,
+} from "../relationships/domain";
+import { isEntityTypeValue } from "../entities/entityTypes";
 import type { Entity } from "../types/entities";
 import type { RelationshipType } from "../types/relationshipTypes";
 
@@ -8,9 +19,9 @@ export type RelationshipFormValues = {
   sourceEntityId: string;
   targetEntityId: string;
   relationshipType: string;
-  lifecycleStatus: string;
-  visibilityStatus: string;
-  certaintyStatus: string;
+  lifecycleStatus: RelationshipLifecycleStatusValue;
+  visibilityStatus: RelationshipVisibilityStatusValue;
+  certaintyStatus: RelationshipCertaintyStatusValue;
   notes: string;
 };
 
@@ -25,18 +36,6 @@ type RelationshipFormProps = {
   onSubmit: (values: RelationshipFormValues) => Promise<void>;
 };
 
-const LIFECYCLE_OPTIONS = ["current", "former"];
-const VISIBILITY_OPTIONS = ["public", "secret"];
-const CERTAINTY_OPTIONS = ["confirmed", "rumored", "suspected"];
-
-function formatRelationshipFamilyLabel(relationshipFamily: string): string {
-  return relationshipFamily
-    .split(/[_-]/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
 export function RelationshipForm({
   campaignId,
   entities,
@@ -50,7 +49,7 @@ export function RelationshipForm({
   const [sourceEntityId, setSourceEntityId] = useState(initialValues.sourceEntityId);
   const [targetEntityId, setTargetEntityId] = useState(initialValues.targetEntityId);
   const [relationshipType, setRelationshipType] = useState(initialValues.relationshipType);
-  const [relationshipGroup, setRelationshipGroup] = useState(
+  const [relationshipGroup, setRelationshipGroup] = useState<RelationshipFamilyValue | "">(
     relationshipTypes.find((typeOption) => typeOption.key === initialValues.relationshipType)?.family ?? "",
   );
   const [lifecycleStatus, setLifecycleStatus] = useState(initialValues.lifecycleStatus);
@@ -68,15 +67,27 @@ export function RelationshipForm({
 
   const compatibleRelationshipTypes = relationshipTypes.filter((typeOption) => {
     if (!sourceEntityType || !targetEntityType) {
-      if (sourceEntityType && !typeOption.allowedSourceTypes.includes(sourceEntityType)) {
+      if (
+        sourceEntityType &&
+        isEntityTypeValue(sourceEntityType) &&
+        !typeOption.allowedSourceTypes.includes(sourceEntityType)
+      ) {
         return false;
       }
 
-      if (targetEntityType && !typeOption.allowedTargetTypes.includes(targetEntityType)) {
+      if (
+        targetEntityType &&
+        isEntityTypeValue(targetEntityType) &&
+        !typeOption.allowedTargetTypes.includes(targetEntityType)
+      ) {
         return false;
       }
 
       return true;
+    }
+
+    if (!isEntityTypeValue(sourceEntityType) || !isEntityTypeValue(targetEntityType)) {
+      return false;
     }
 
     return (
@@ -101,7 +112,7 @@ export function RelationshipForm({
       return true;
     }
 
-    return selectedRelationshipType.allowedSourceTypes.includes(entity.type);
+    return isEntityTypeValue(entity.type) && selectedRelationshipType.allowedSourceTypes.includes(entity.type);
   });
 
   const targetEntityOptions = entities.filter((entity) => {
@@ -109,7 +120,7 @@ export function RelationshipForm({
       return true;
     }
 
-    return selectedRelationshipType.allowedTargetTypes.includes(entity.type);
+    return isEntityTypeValue(entity.type) && selectedRelationshipType.allowedTargetTypes.includes(entity.type);
   });
 
   useEffect(() => {
@@ -201,7 +212,7 @@ export function RelationshipForm({
         <select
           value={relationshipGroup}
           onChange={(event) => {
-            const nextRelationshipGroup = event.target.value;
+            const nextRelationshipGroup = event.target.value as RelationshipFamilyValue | "";
             setRelationshipGroup(nextRelationshipGroup);
 
             const selectedTypeStillMatches = compatibleRelationshipTypes.some(
@@ -260,12 +271,12 @@ export function RelationshipForm({
           <select
             value={lifecycleStatus}
             onChange={(event) => {
-              setLifecycleStatus(event.target.value);
+              setLifecycleStatus(event.target.value as RelationshipLifecycleStatusValue);
             }}
           >
-            {LIFECYCLE_OPTIONS.map((statusOption) => (
-              <option key={statusOption} value={statusOption}>
-                {statusOption}
+            {RELATIONSHIP_LIFECYCLE_STATUS_OPTIONS.map((statusOption) => (
+              <option key={statusOption.value} value={statusOption.value}>
+                {statusOption.label}
               </option>
             ))}
           </select>
@@ -275,12 +286,12 @@ export function RelationshipForm({
           <select
             value={visibilityStatus}
             onChange={(event) => {
-              setVisibilityStatus(event.target.value);
+              setVisibilityStatus(event.target.value as RelationshipVisibilityStatusValue);
             }}
           >
-            {VISIBILITY_OPTIONS.map((statusOption) => (
-              <option key={statusOption} value={statusOption}>
-                {statusOption}
+            {RELATIONSHIP_VISIBILITY_STATUS_OPTIONS.map((statusOption) => (
+              <option key={statusOption.value} value={statusOption.value}>
+                {statusOption.label}
               </option>
             ))}
           </select>
@@ -290,12 +301,12 @@ export function RelationshipForm({
           <select
             value={certaintyStatus}
             onChange={(event) => {
-              setCertaintyStatus(event.target.value);
+              setCertaintyStatus(event.target.value as RelationshipCertaintyStatusValue);
             }}
           >
-            {CERTAINTY_OPTIONS.map((statusOption) => (
-              <option key={statusOption} value={statusOption}>
-                {statusOption}
+            {RELATIONSHIP_CERTAINTY_STATUS_OPTIONS.map((statusOption) => (
+              <option key={statusOption.value} value={statusOption.value}>
+                {statusOption.label}
               </option>
             ))}
           </select>

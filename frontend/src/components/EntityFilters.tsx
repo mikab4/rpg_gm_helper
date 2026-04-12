@@ -1,14 +1,14 @@
-import { ENTITY_TYPE_OPTIONS } from "../entities/entityTypes";
+import { ENTITY_TYPE_OPTIONS, isEntityTypeValue, type EntityTypeValue } from "../entities/entityTypes";
 import type { Campaign } from "../types/campaigns";
 
 type EntityFiltersProps = {
   campaignId: string;
   campaigns: Campaign[];
   entitySearch: string;
-  entityType: string;
+  entityType: EntityTypeValue | "";
   onCampaignIdChange: (value: string) => void;
   onEntitySearchChange: (value: string) => void;
-  onEntityTypeChange: (value: string) => void;
+  onEntityTypeChange: (value: EntityTypeValue | "") => void;
 };
 
 export function EntityFilters({
@@ -54,7 +54,8 @@ export function EntityFilters({
         <select
           value={entityType}
           onChange={(event) => {
-            onEntityTypeChange(event.target.value);
+            const nextEntityType = event.target.value;
+            onEntityTypeChange(isEntityTypeValue(nextEntityType) ? nextEntityType : "");
           }}
         >
           <option value="">All entity types</option>

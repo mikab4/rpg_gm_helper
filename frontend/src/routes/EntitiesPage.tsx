@@ -9,6 +9,7 @@ import { EntityQuickLookPanel } from "../components/EntityQuickLookPanel";
 import { PageHeader } from "../components/PageHeader";
 import { RequestStateBlock } from "../components/RequestStateBlock";
 import { SectionPanel } from "../components/SectionPanel";
+import type { EntityTypeValue } from "../entities/entityTypes";
 import type { Campaign } from "../types/campaigns";
 import type { Entity } from "../types/entities";
 
@@ -29,7 +30,7 @@ export function EntitiesPage() {
   const [entityListState, setEntityListState] = useState<EntityListState>({ status: "loading" });
   const [campaignId, setCampaignId] = useState("");
   const [entitySearch, setEntitySearch] = useState("");
-  const [entityType, setEntityType] = useState("");
+  const [entityType, setEntityType] = useState<EntityTypeValue | "">("");
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export function EntitiesPage() {
       try {
         const entities = await listEntities({
           campaignId: campaignId || undefined,
-          entityType: entityType.trim() || undefined,
+          entityType: entityType || undefined,
           signal: abortController.signal,
         });
         setEntityListState({ entities, status: "ready" });

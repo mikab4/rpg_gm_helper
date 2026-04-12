@@ -1,9 +1,10 @@
 import { apiRequest } from "./client";
+import type { EntityTypeValue } from "../entities/entityTypes";
 import type { Entity, EntityCreate, EntityUpdate } from "../types/entities";
 
 type EntityListOptions = {
   campaignId?: string;
-  entityType?: string;
+  entityType?: EntityTypeValue;
   signal?: AbortSignal;
 };
 
@@ -117,7 +118,7 @@ export async function listEntities(options: EntityListOptions = {}): Promise<Ent
 
 export async function listCampaignEntities(
   campaignId: string,
-  entityType?: string,
+  entityType?: EntityTypeValue,
   signal?: AbortSignal,
 ): Promise<Entity[]> {
   const payload = await apiRequest(`/campaigns/${campaignId}/entities${buildEntityQueryString({ entityType })}`, {

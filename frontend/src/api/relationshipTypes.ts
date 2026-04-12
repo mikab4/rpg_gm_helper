@@ -1,4 +1,6 @@
 import { apiRequest } from "./client";
+import { isEntityTypeValue } from "../entities/entityTypes";
+import { isRelationshipFamilyValue } from "../relationships/domain";
 import type { RelationshipType, RelationshipTypeCreate, RelationshipTypeUpdate } from "../types/relationshipTypes";
 
 function parseRelationshipType(payload: unknown): RelationshipType {
@@ -11,14 +13,21 @@ function parseRelationshipType(payload: unknown): RelationshipType {
     typeof payload.label !== "string" ||
     !("family" in payload) ||
     typeof payload.family !== "string" ||
+    !isRelationshipFamilyValue(payload.family) ||
     !("reverse_label" in payload) ||
     !(typeof payload.reverse_label === "string" || payload.reverse_label === null) ||
     !("is_symmetric" in payload) ||
     typeof payload.is_symmetric !== "boolean" ||
     !("allowed_source_types" in payload) ||
     !Array.isArray(payload.allowed_source_types) ||
+    payload.allowed_source_types.some(
+      (allowedSourceType) => typeof allowedSourceType !== "string" || !isEntityTypeValue(allowedSourceType),
+    ) ||
     !("allowed_target_types" in payload) ||
     !Array.isArray(payload.allowed_target_types) ||
+    payload.allowed_target_types.some(
+      (allowedTargetType) => typeof allowedTargetType !== "string" || !isEntityTypeValue(allowedTargetType),
+    ) ||
     !("is_custom" in payload) ||
     typeof payload.is_custom !== "boolean" ||
     !("created_at" in payload) ||
@@ -29,22 +38,35 @@ function parseRelationshipType(payload: unknown): RelationshipType {
     throw new Error("Invalid relationship type response payload.");
   }
 
+  const typedPayload = payload as {
+    allowed_source_types: RelationshipType["allowedSourceTypes"];
+    allowed_target_types: RelationshipType["allowedTargetTypes"];
+    created_at: string | null;
+    family: RelationshipType["family"];
+    is_custom: boolean;
+    is_symmetric: boolean;
+    key: string;
+    label: string;
+    reverse_label: string | null;
+    updated_at: string | null;
+  } & {
+    campaign_id?: string | null;
+    id?: string | null;
+  };
+
   return {
-    id: "id" in payload && (typeof payload.id === "string" || payload.id === null) ? payload.id : null,
-    campaignId:
-      "campaign_id" in payload && (typeof payload.campaign_id === "string" || payload.campaign_id === null)
-        ? payload.campaign_id
-        : null,
-    key: payload.key,
-    label: payload.label,
-    family: payload.family,
-    reverseLabel: payload.reverse_label,
-    isSymmetric: payload.is_symmetric,
-    allowedSourceTypes: payload.allowed_source_types.map(String),
-    allowedTargetTypes: payload.allowed_target_types.map(String),
-    isCustom: payload.is_custom,
-    createdAt: payload.created_at,
-    updatedAt: payload.updated_at,
+    id: "id" in typedPayload ? (typedPayload.id ?? null) : null,
+    campaignId: "campaign_id" in typedPayload ? (typedPayload.campaign_id ?? null) : null,
+    key: typedPayload.key,
+    label: typedPayload.label,
+    family: typedPayload.family,
+    reverseLabel: typedPayload.reverse_label,
+    isSymmetric: typedPayload.is_symmetric,
+    allowedSourceTypes: typedPayload.allowed_source_types,
+    allowedTargetTypes: typedPayload.allowed_target_types,
+    isCustom: typedPayload.is_custom,
+    createdAt: typedPayload.created_at,
+    updatedAt: typedPayload.updated_at,
   };
 }
 

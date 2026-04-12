@@ -1,3 +1,5 @@
+import type { EntityTypeValue } from "../entities/entityTypes";
+
 export type LegacyEntityTypeExample = {
   entityId: string;
   entityName: string;
@@ -20,12 +22,12 @@ export type EntityTypeCompatibilityReport = {
 
 export type EntityTypeMigrationMapping = {
   legacyType: string;
-  targetType: string;
+  targetType: EntityTypeValue;
 };
 
 export type EntityTypeMigrationResultItem = {
   legacyType: string;
-  targetType: string;
+  targetType: EntityTypeValue;
   updatedCount: number;
 };
 

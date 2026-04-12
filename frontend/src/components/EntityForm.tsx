@@ -1,9 +1,21 @@
 import { useMemo, useState, type SyntheticEvent } from "react";
 
-import { ENTITY_TYPE_OPTIONS, formatEntityTypeLabel } from "../entities/entityTypes";
+import {
+  ENTITY_TYPE_OPTIONS,
+  formatEntityTypeLabel,
+  isEntityTypeValue,
+  type EntityTypeValue,
+} from "../entities/entityTypes";
 import type { Campaign } from "../types/campaigns";
 
 export type EntityFormValues = {
+  campaignId: string;
+  name: string;
+  summary: string;
+  type: EntityTypeValue;
+};
+
+type EntityFormInitialValues = {
   campaignId: string;
   name: string;
   summary: string;
@@ -13,7 +25,7 @@ export type EntityFormValues = {
 type EntityFormProps = {
   campaignOptions: Campaign[];
   fixedCampaignId?: string;
-  initialValues: EntityFormValues;
+  initialValues: EntityFormInitialValues;
   submitError: string | null;
   submitLabel: string;
   submitting: boolean;
@@ -46,7 +58,6 @@ export function EntityForm({
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedType = type.trim();
     const trimmedName = name.trim();
     let hasError = false;
 
@@ -57,7 +68,7 @@ export function EntityForm({
       setCampaignError(null);
     }
 
-    if (!trimmedType) {
+    if (!type) {
       setTypeError("Entity type is required.");
       hasError = true;
     } else {
@@ -75,11 +86,15 @@ export function EntityForm({
       return;
     }
 
+    if (!selectedCampaignId || !isEntityTypeValue(type)) {
+      return;
+    }
+
     await onSubmit({
       campaignId: selectedCampaignId,
       name: trimmedName,
       summary,
-      type: trimmedType,
+      type,
     });
   }
 
@@ -114,7 +129,8 @@ export function EntityForm({
         <select
           value={type}
           onChange={(event) => {
-            setType(event.target.value);
+            const nextType = event.target.value;
+            setType(isEntityTypeValue(nextType) ? nextType : "");
           }}
         >
           <option value="">Select an entity type</option>

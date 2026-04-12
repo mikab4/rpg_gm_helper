@@ -1,8 +1,10 @@
 import { apiRequest } from "./client";
+import { isEntityTypeValue } from "../entities/entityTypes";
 import type {
   EntityTypeCompatibilityReport,
   EntityTypeMigrationMapping,
   EntityTypeMigrationResult,
+  EntityTypeMigrationResultItem,
   LegacyEntityTypeExample,
   LegacyEntityTypeIssue,
 } from "../types/compatibility";
@@ -111,6 +113,7 @@ function parseEntityTypeMigrationResult(payload: unknown): EntityTypeMigrationRe
         typeof updatedTypePayload.legacy_type !== "string" ||
         !("target_type" in updatedTypePayload) ||
         typeof updatedTypePayload.target_type !== "string" ||
+        !isEntityTypeValue(updatedTypePayload.target_type) ||
         !("updated_count" in updatedTypePayload) ||
         typeof updatedTypePayload.updated_count !== "number"
       ) {
@@ -119,7 +122,7 @@ function parseEntityTypeMigrationResult(payload: unknown): EntityTypeMigrationRe
 
       const typedUpdatedTypePayload = updatedTypePayload as {
         legacy_type: string;
-        target_type: string;
+        target_type: EntityTypeMigrationResultItem["targetType"];
         updated_count: number;
       };
 

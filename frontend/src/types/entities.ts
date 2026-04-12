@@ -1,3 +1,5 @@
+import type { EntityTypeValue } from "../entities/entityTypes";
+
 export type Entity = {
   id: string;
   campaignId: string;
@@ -13,14 +15,14 @@ export type Entity = {
 };
 
 export type EntityCreate = {
-  type: string;
+  type: EntityTypeValue;
   name: string;
   summary: string | null;
   metadata: Record<string, unknown>;
 };
 
 export type EntityUpdate = {
-  type?: string;
+  type?: EntityTypeValue;
   name?: string;
   summary?: string | null;
   metadata?: Record<string, unknown>;

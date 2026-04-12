@@ -1,6 +1,11 @@
 import { useMemo, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from "react";
 
-import { ENTITY_TYPE_OPTIONS, formatEntityTypeLabel } from "../entities/entityTypes";
+import { ENTITY_TYPE_OPTIONS, formatEntityTypeLabel, type EntityTypeValue } from "../entities/entityTypes";
+import {
+  RELATIONSHIP_FAMILY_OPTIONS,
+  formatRelationshipFamilyLabel,
+  type RelationshipFamilyValue,
+} from "../relationships/domain";
 import type { RelationshipType, RelationshipTypeCreate, RelationshipTypeUpdate } from "../types/relationshipTypes";
 
 type RelationshipTypeManagerProps = {
@@ -12,8 +17,6 @@ type RelationshipTypeManagerProps = {
   onUpdate: (relationshipTypeKey: string, relationshipTypeUpdate: RelationshipTypeUpdate) => Promise<void>;
 };
 
-const RELATIONSHIP_FAMILY_OPTIONS = ["family", "political", "social", "romance", "location", "organizational", "other"];
-
 export function RelationshipTypeManager({
   relationshipTypes,
   submitError,
@@ -23,13 +26,13 @@ export function RelationshipTypeManager({
   onUpdate,
 }: RelationshipTypeManagerProps) {
   const [label, setLabel] = useState("");
-  const [family, setFamily] = useState("social");
+  const [family, setFamily] = useState<RelationshipFamilyValue>("social");
   const [reverseLabel, setReverseLabel] = useState("");
   const [isSymmetric, setIsSymmetric] = useState(false);
-  const [allowedSourceTypes, setAllowedSourceTypes] = useState(["person"]);
-  const [allowedTargetTypes, setAllowedTargetTypes] = useState(["person"]);
-  const [selectedAllowedSourceType, setSelectedAllowedSourceType] = useState("person");
-  const [selectedAllowedTargetType, setSelectedAllowedTargetType] = useState("person");
+  const [allowedSourceTypes, setAllowedSourceTypes] = useState<EntityTypeValue[]>(["person"]);
+  const [allowedTargetTypes, setAllowedTargetTypes] = useState<EntityTypeValue[]>(["person"]);
+  const [selectedAllowedSourceType, setSelectedAllowedSourceType] = useState<EntityTypeValue>("person");
+  const [selectedAllowedTargetType, setSelectedAllowedTargetType] = useState<EntityTypeValue>("person");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
 
@@ -53,8 +56,8 @@ export function RelationshipTypeManager({
     event.preventDefault();
 
     const createSucceeded = await onCreate({
-      allowedSourceTypes: allowedSourceTypes.map((value) => value.trim()).filter(Boolean),
-      allowedTargetTypes: allowedTargetTypes.map((value) => value.trim()).filter(Boolean),
+      allowedSourceTypes,
+      allowedTargetTypes,
       family,
       isSymmetric,
       label: label.trim(),
@@ -81,13 +84,13 @@ export function RelationshipTypeManager({
     setEditingLabel("");
   }
 
-  function addAllowedType(nextType: string, setAllowedTypes: Dispatch<SetStateAction<string[]>>) {
+  function addAllowedType(nextType: EntityTypeValue, setAllowedTypes: Dispatch<SetStateAction<EntityTypeValue[]>>) {
     setAllowedTypes((currentAllowedTypes) =>
       currentAllowedTypes.includes(nextType) ? currentAllowedTypes : [...currentAllowedTypes, nextType],
     );
   }
 
-  function removeAllowedType(removedType: string, setAllowedTypes: Dispatch<SetStateAction<string[]>>) {
+  function removeAllowedType(removedType: EntityTypeValue, setAllowedTypes: Dispatch<SetStateAction<EntityTypeValue[]>>) {
     setAllowedTypes((currentAllowedTypes) => currentAllowedTypes.filter((allowedType) => allowedType !== removedType));
   }
 
@@ -114,12 +117,12 @@ export function RelationshipTypeManager({
           <select
             value={family}
             onChange={(event) => {
-              setFamily(event.target.value);
+              setFamily(event.target.value as RelationshipFamilyValue);
             }}
           >
             {RELATIONSHIP_FAMILY_OPTIONS.map((familyOption) => (
-              <option key={familyOption} value={familyOption}>
-                {familyOption}
+              <option key={familyOption.value} value={familyOption.value}>
+                {familyOption.label}
               </option>
             ))}
           </select>
@@ -131,7 +134,7 @@ export function RelationshipTypeManager({
               aria-label="Allowed Source Type"
               value={selectedAllowedSourceType}
               onChange={(event) => {
-                setSelectedAllowedSourceType(event.target.value);
+                setSelectedAllowedSourceType(event.target.value as EntityTypeValue);
               }}
             >
               {ENTITY_TYPE_OPTIONS.map((entityTypeOption) => (
@@ -175,7 +178,7 @@ export function RelationshipTypeManager({
               aria-label="Allowed Target Type"
               value={selectedAllowedTargetType}
               onChange={(event) => {
-                setSelectedAllowedTargetType(event.target.value);
+                setSelectedAllowedTargetType(event.target.value as EntityTypeValue);
               }}
             >
               {ENTITY_TYPE_OPTIONS.map((entityTypeOption) => (
@@ -248,7 +251,8 @@ export function RelationshipTypeManager({
             <div className="relationship-type-copy">
               <strong>{relationshipType.label}</strong>
               <span>
-                {relationshipType.family} · {relationshipType.isCustom ? "Custom" : "Built In"}
+                {formatRelationshipFamilyLabel(relationshipType.family)} ·{" "}
+                {relationshipType.isCustom ? "Custom" : "Built In"}
               </span>
               <span>
                 {relationshipType.allowedSourceTypes.join(", ")} {"->"} {relationshipType.allowedTargetTypes.join(", ")}

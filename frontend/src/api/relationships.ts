@@ -1,8 +1,15 @@
 import { apiRequest } from "./client";
+import {
+  isRelationshipCertaintyStatusValue,
+  isRelationshipFamilyValue,
+  isRelationshipLifecycleStatusValue,
+  isRelationshipVisibilityStatusValue,
+  type RelationshipFamilyValue,
+} from "../relationships/domain";
 import type { Relationship, RelationshipCreate, RelationshipUpdate } from "../types/relationships";
 
 type RelationshipListOptions = {
-  relationshipFamily?: string;
+  relationshipFamily?: RelationshipFamilyValue;
   relationshipType?: string;
   signal?: AbortSignal;
 };
@@ -23,6 +30,7 @@ function parseRelationship(payload: unknown): Relationship {
     typeof payload.relationship_type !== "string" ||
     !("relationship_family" in payload) ||
     typeof payload.relationship_family !== "string" ||
+    !isRelationshipFamilyValue(payload.relationship_family) ||
     !("forward_label" in payload) ||
     typeof payload.forward_label !== "string" ||
     !("reverse_label" in payload) ||
@@ -31,10 +39,13 @@ function parseRelationship(payload: unknown): Relationship {
     typeof payload.is_symmetric !== "boolean" ||
     !("lifecycle_status" in payload) ||
     typeof payload.lifecycle_status !== "string" ||
+    !isRelationshipLifecycleStatusValue(payload.lifecycle_status) ||
     !("visibility_status" in payload) ||
     typeof payload.visibility_status !== "string" ||
+    !isRelationshipVisibilityStatusValue(payload.visibility_status) ||
     !("certainty_status" in payload) ||
     typeof payload.certainty_status !== "string" ||
+    !isRelationshipCertaintyStatusValue(payload.certainty_status) ||
     !("notes" in payload) ||
     !(typeof payload.notes === "string" || payload.notes === null) ||
     !("confidence" in payload) ||
