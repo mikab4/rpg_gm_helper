@@ -24,26 +24,39 @@ export function OverviewPage() {
   const [isCopied, setIsCopied] = useState(false);
   const [quickDraft, setQuickDraft] = useState(() => window.localStorage.getItem("gm-workspace:quick-draft") ?? "");
 
+  async function loadHealth(signal?: AbortSignal) {
+    try {
+      const nextHealth = await getHealth({ signal });
+      setRequestState({ status: "success", health: nextHealth });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      setRequestState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unknown connection error.",
+      });
+    }
+  }
+
+  async function loadCampaignShortcuts(signal?: AbortSignal) {
+    try {
+      const campaigns = await listCampaigns({ signal });
+      setCampaignShortcutState({ campaigns: campaigns.slice(0, 3), status: "ready" });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      setCampaignShortcutState({ status: "error" });
+    }
+  }
+
   useEffect(() => {
     const abortController = new AbortController();
 
-    async function loadHealth() {
-      try {
-        const nextHealth = await getHealth({ signal: abortController.signal });
-        setRequestState({ status: "success", health: nextHealth });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        setRequestState({
-          status: "error",
-          message: error instanceof Error ? error.message : "Unknown connection error.",
-        });
-      }
-    }
-
-    void loadHealth();
+    void loadHealth(abortController.signal);
 
     return () => {
       abortController.abort();
@@ -53,20 +66,7 @@ export function OverviewPage() {
   useEffect(() => {
     const abortController = new AbortController();
 
-    async function loadCampaignShortcuts() {
-      try {
-        const campaigns = await listCampaigns({ signal: abortController.signal });
-        setCampaignShortcutState({ campaigns: campaigns.slice(0, 3), status: "ready" });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        setCampaignShortcutState({ status: "error" });
-      }
-    }
-
-    void loadCampaignShortcuts();
+    void loadCampaignShortcuts(abortController.signal);
 
     return () => {
       abortController.abort();
@@ -85,11 +85,16 @@ export function OverviewPage() {
     }, 1200);
   }
 
-  function handleReconnect() {
+  async function handleReconnect() {
     setIsReconnectSpinning(true);
-    window.setTimeout(() => {
+    setRequestState({ status: "loading" });
+    setCampaignShortcutState({ status: "loading" });
+
+    try {
+      await Promise.allSettled([loadHealth(), loadCampaignShortcuts()]);
+    } finally {
       setIsReconnectSpinning(false);
-    }, 900);
+    }
   }
 
   return (
@@ -143,7 +148,13 @@ export function OverviewPage() {
             </div>
             <div className="utility-bar-status">
               <span className="status-pill status-error">Offline</span>
-              <button className="utility-reconnect" type="button" onClick={handleReconnect}>
+              <button
+                className="utility-reconnect"
+                type="button"
+                onClick={() => {
+                  void handleReconnect();
+                }}
+              >
                 <RefreshCw
                   aria-hidden="true"
                   className={isReconnectSpinning ? "spin-icon" : undefined}

@@ -1,6 +1,30 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+function getRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") {
+    return input;
+  }
+
+  if (input instanceof URL) {
+    return input.toString();
+  }
+
+  return input.url;
+}
+
+function compatibilityReportResponse() {
+  return {
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        has_issues: false,
+        issue_count: 0,
+        issues: [],
+      }),
+  };
+}
 
 describe("OverviewPage", () => {
   afterEach(() => {
@@ -21,7 +45,11 @@ describe("OverviewPage", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
-        const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/compatibility/entity-types")) {
+          return Promise.resolve(compatibilityReportResponse());
+        }
 
         if (requestUrl.endsWith("/health")) {
           return new Promise((resolve) => {
@@ -47,11 +75,14 @@ describe("OverviewPage", () => {
 
     render(<RouterProvider router={router} />);
 
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByText("Checking")).toBeInTheDocument();
 
-    resolveHealthFetch({
-      ok: true,
-      json: () => Promise.resolve({ status: "ok" }),
+    act(() => {
+      resolveHealthFetch({
+        ok: true,
+        json: () => Promise.resolve({ status: "ok" }),
+      });
     });
 
     expect(await screen.findByText("Connected")).toBeInTheDocument();
@@ -61,26 +92,39 @@ describe("OverviewPage", () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "ok" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              {
-                id: "campaign-1",
-                owner_id: "owner-1",
-                name: "Shadows of Glass",
-                description: "Urban intrigue campaign",
-                created_at: "2026-04-08T12:00:00Z",
-                updated_at: "2026-04-08T12:00:00Z",
-              },
-            ]),
-        }),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/compatibility/entity-types")) {
+          return Promise.resolve(compatibilityReportResponse());
+        }
+
+        if (requestUrl.endsWith("/health")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ status: "ok" }),
+          });
+        }
+
+        if (requestUrl.endsWith("/campaigns")) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                {
+                  id: "campaign-1",
+                  owner_id: "owner-1",
+                  name: "Shadows of Glass",
+                  description: "Urban intrigue campaign",
+                  created_at: "2026-04-08T12:00:00Z",
+                  updated_at: "2026-04-08T12:00:00Z",
+                },
+              ]),
+          });
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
     );
 
     const { routes } = await import("../../app/routes");
@@ -117,9 +161,17 @@ describe("OverviewPage", () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ state: "ok" }),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/compatibility/entity-types")) {
+          return Promise.resolve(compatibilityReportResponse());
+        }
+
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ state: "ok" }),
+        });
       }),
     );
 
@@ -139,16 +191,94 @@ describe("OverviewPage", () => {
     expect(screen.getByText("To enable AI extraction and sync, run the server:")).toBeInTheDocument();
   });
 
+  it("retries health and campaign shortcuts when reconnect is clicked", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    let reconnectEnabled = false;
+    const fetchSpy = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const requestUrl = getRequestUrl(input);
+
+      if (requestUrl.endsWith("/compatibility/entity-types")) {
+        return Promise.resolve(compatibilityReportResponse());
+      }
+
+      if (requestUrl.endsWith("/health")) {
+        if (!reconnectEnabled) {
+          return Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:8000"));
+        }
+
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ok" }),
+        });
+      }
+
+      if (requestUrl.endsWith("/campaigns")) {
+        if (!reconnectEnabled) {
+          return Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:8000"));
+        }
+
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              {
+                id: "campaign-1",
+                owner_id: "owner-1",
+                name: "Shadows of Glass",
+                description: "Urban intrigue campaign",
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            ]),
+        });
+      }
+
+      throw new Error(`Unhandled request URL: ${requestUrl}`);
+    });
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { routes } = await import("../../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByText("Campaign shortcuts unavailable.")).toBeInTheDocument();
+
+    reconnectEnabled = true;
+    fireEvent.click(screen.getByRole("button", { name: "Reconnect" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Checking")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Connected")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Backend status: ok")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Shadows of Glass" })).toHaveAttribute("href", "/campaigns/campaign-1");
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
+  });
+
   it("aborts the health request on unmount without rendering an error state", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
-    const fetchSpy = vi.fn().mockImplementation(
-      (_input: RequestInfo | URL, init?: RequestInit) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
-          });
-        }),
-    );
+    const fetchSpy = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const requestUrl = getRequestUrl(input);
+
+      if (requestUrl.endsWith("/compatibility/entity-types")) {
+        return Promise.resolve(compatibilityReportResponse());
+      }
+
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+        });
+      });
+    });
 
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -159,16 +289,29 @@ describe("OverviewPage", () => {
 
     const { unmount } = render(<RouterProvider router={router} />);
 
+    await screen.findByRole("heading", { name: "Overview" });
+
     unmount();
 
     await Promise.resolve();
 
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   it("keeps quick draft notes locally even when the backend is offline", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:8000")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/compatibility/entity-types")) {
+          return Promise.resolve(compatibilityReportResponse());
+        }
+
+        return Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:8000"));
+      }),
+    );
 
     const { routes } = await import("../../app/routes");
     const router = createMemoryRouter(routes, {
@@ -188,16 +331,29 @@ describe("OverviewPage", () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "ok" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        }),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/compatibility/entity-types")) {
+          return Promise.resolve(compatibilityReportResponse());
+        }
+
+        if (requestUrl.endsWith("/health")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ status: "ok" }),
+          });
+        }
+
+        if (requestUrl.endsWith("/campaigns")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([]),
+          });
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
     );
 
     const { routes } = await import("../../app/routes");
@@ -215,16 +371,29 @@ describe("OverviewPage", () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: "ok" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        }),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/compatibility/entity-types")) {
+          return Promise.resolve(compatibilityReportResponse());
+        }
+
+        if (requestUrl.endsWith("/health")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ status: "ok" }),
+          });
+        }
+
+        if (requestUrl.endsWith("/campaigns")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([]),
+          });
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
     );
 
     const { routes } = await import("../../app/routes");
