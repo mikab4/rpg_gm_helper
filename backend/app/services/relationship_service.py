@@ -68,34 +68,12 @@ def list_relationships(
     relationship_family: str | None = None,
 ) -> list[Relationship]:
     ensure_campaign_exists(db_session, campaign_id)
-    normalized_relationship_family = (
-        normalize_str_enum_value(RelationshipFamily, relationship_family) if relationship_family is not None else None
+    statement = _build_relationship_list_statement(
+        db_session,
+        campaign_id=campaign_id,
+        relationship_type=relationship_type,
+        relationship_family=relationship_family,
     )
-    if relationship_type is not None:
-        relationship_descriptor = get_descriptor_or_raise(
-            db_session,
-            campaign_id=campaign_id,
-            relationship_type=relationship_type,
-        )
-        if normalized_relationship_family is not None and relationship_descriptor.family != normalized_relationship_family:
-            raise ValueError("Relationship type does not belong to the requested relationship family.")
-        statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
-        statement = statement.where(Relationship.relationship_type == relationship_descriptor.key)
-        statement = statement.order_by(Relationship.created_at.desc(), Relationship.id)
-        return list(db_session.scalars(statement))
-
-    statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
-    if normalized_relationship_family is not None:
-        matching_relationship_type_keys = [
-            descriptor.key
-            for descriptor in list_relationship_type_descriptors_by_family(
-                db_session,
-                relationship_family=normalized_relationship_family,
-                campaign_id=campaign_id,
-            )
-        ]
-        statement = statement.where(Relationship.relationship_type.in_(matching_relationship_type_keys))
-
     statement = statement.order_by(Relationship.created_at.desc(), Relationship.id)
     return list(db_session.scalars(statement))
 
@@ -191,6 +169,41 @@ def _get_campaign_entity(
     if stored_entity is None:
         raise NotFoundError(not_found_message)
     return stored_entity
+
+
+def _build_relationship_list_statement(
+    db_session: Session,
+    *,
+    campaign_id: UUID,
+    relationship_type: str | None,
+    relationship_family: str | None,
+):
+    statement = select(Relationship).where(Relationship.campaign_id == campaign_id)
+    normalized_relationship_family = (
+        normalize_str_enum_value(RelationshipFamily, relationship_family) if relationship_family is not None else None
+    )
+    if relationship_type is not None:
+        relationship_descriptor = get_descriptor_or_raise(
+            db_session,
+            campaign_id=campaign_id,
+            relationship_type=relationship_type,
+        )
+        if normalized_relationship_family is not None and relationship_descriptor.family != normalized_relationship_family:
+            raise ValueError("Relationship type does not belong to the requested relationship family.")
+        return statement.where(Relationship.relationship_type == relationship_descriptor.key)
+
+    if normalized_relationship_family is not None:
+        matching_relationship_type_keys = [
+            descriptor.key
+            for descriptor in list_relationship_type_descriptors_by_family(
+                db_session,
+                relationship_family=normalized_relationship_family,
+                campaign_id=campaign_id,
+            )
+        ]
+        statement = statement.where(Relationship.relationship_type.in_(matching_relationship_type_keys))
+
+    return statement
 
 
 def _get_relationship_endpoints(

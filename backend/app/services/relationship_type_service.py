@@ -136,18 +136,18 @@ def _get_custom_relationship_type(
 ) -> RelationshipTypeDefinition:
     ensure_campaign_exists(db_session, campaign_id)
 
-    normalized_type_key = get_relationship_type_descriptor(
+    relationship_type_descriptor = get_relationship_type_descriptor(
         db_session,
         relationship_type_key=relationship_type_key,
         campaign_id=campaign_id,
     )
-    if normalized_type_key is None or not normalized_type_key.is_custom:
+    if relationship_type_descriptor is None or not relationship_type_descriptor.is_custom:
         raise NotFoundError("Relationship type not found.")
 
     stored_type_definition = db_session.scalar(
         select(RelationshipTypeDefinition).where(
             RelationshipTypeDefinition.campaign_id == campaign_id,
-            RelationshipTypeDefinition.key == normalized_type_key.key,
+            RelationshipTypeDefinition.key == relationship_type_descriptor.key,
         )
     )
     if stored_type_definition is None:
