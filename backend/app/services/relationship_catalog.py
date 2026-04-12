@@ -415,6 +415,16 @@ BUILT_IN_RELATIONSHIP_TYPES: dict[str, RelationshipTypeDescriptor] = {
         allowed_target_types=(EntityType.EVENT, EntityType.OTHER),
         is_custom=False,
     ),
+    "precedes": RelationshipTypeDescriptor(
+        key="precedes",
+        label="precedes",
+        family=RelationshipFamily.EVENT,
+        reverse_label="succeeds",
+        is_symmetric=False,
+        allowed_source_types=(EntityType.EVENT,),
+        allowed_target_types=(EntityType.EVENT,),
+        is_custom=False,
+    ),
 }
 
 def build_descriptor_from_custom_type(
