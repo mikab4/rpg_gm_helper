@@ -72,13 +72,11 @@ def list_relationships(
         ) from exc
 
     return [
-        RelationshipResponse.model_validate(
-            relationship_service.build_relationship_response_payload(
-                db_session,
-                relationship=listed_relationship,
-            )
+        RelationshipResponse.model_validate(listed_relationship_payload)
+        for listed_relationship_payload in relationship_service.build_relationship_response_payloads(
+            db_session,
+            relationships=listed_relationships,
         )
-        for listed_relationship in listed_relationships
     ]
 
 

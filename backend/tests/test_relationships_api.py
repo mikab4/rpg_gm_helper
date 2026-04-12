@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app import services
 from app.models.campaign import Campaign
 from app.models.entity import Entity
 from app.models.relationship import Relationship
@@ -252,6 +253,79 @@ def test_create_relationship_returns_created_record_with_catalog_metadata(
     assert response.json()["forward_label"] == "spouse of"
     assert response.json()["reverse_label"] == "spouse of"
     assert response.json()["visibility_status"] == "secret"
+
+
+def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_custom_type(
+    db_session_factory,
+    monkeypatch,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
+        target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
+        third_entity = Entity(campaign_id=test_campaign.id, type="person", name="Ilya")
+        db_session.add_all([source_entity, target_entity, third_entity])
+        db_session.flush()
+        db_session.add(
+            RelationshipTypeDefinition(
+                id=uuid4(),
+                campaign_id=test_campaign.id,
+                key="bodyguard_of",
+                label="bodyguard of",
+                family="social",
+                reverse_label="guarded by",
+                is_symmetric=False,
+                allowed_source_types=["person"],
+                allowed_target_types=["person"],
+            )
+        )
+        first_relationship = Relationship(
+            campaign_id=test_campaign.id,
+            source_entity=source_entity,
+            target_entity=target_entity,
+            relationship_type="bodyguard_of",
+            lifecycle_status="current",
+            visibility_status="public",
+            certainty_status="confirmed",
+        )
+        second_relationship = Relationship(
+            campaign_id=test_campaign.id,
+            source_entity=third_entity,
+            target_entity=target_entity,
+            relationship_type="bodyguard_of",
+            lifecycle_status="current",
+            visibility_status="public",
+            certainty_status="confirmed",
+        )
+        db_session.add_all([first_relationship, second_relationship])
+        db_session.commit()
+
+        descriptor_lookup_count = 0
+        original_get_relationship_type_descriptor = services.relationship_service.get_relationship_type_descriptor
+
+        def counting_get_relationship_type_descriptor(*args, **kwargs):
+            nonlocal descriptor_lookup_count
+            descriptor_lookup_count += 1
+            return original_get_relationship_type_descriptor(*args, **kwargs)
+
+        monkeypatch.setattr(
+            services.relationship_service,
+            "get_relationship_type_descriptor",
+            counting_get_relationship_type_descriptor,
+        )
+
+        listed_relationships = services.relationship_service.list_relationships(
+            db_session,
+            campaign_id=test_campaign.id,
+        )
+
+        payloads = services.relationship_service.build_relationship_response_payloads(
+            db_session,
+            relationships=listed_relationships,
+        )
+
+    assert [payload["relationship_type"] for payload in payloads] == ["bodyguard_of", "bodyguard_of"]
+    assert descriptor_lookup_count == 1
 
 
 def test_create_relationship_rejects_cross_campaign_target_entity(
