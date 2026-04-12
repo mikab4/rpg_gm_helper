@@ -2,6 +2,8 @@ from app.services import (
     campaign_service,
     entity_service,
     owner_service,
+    relationship_descriptor_resolver,
+    relationship_mapper,
     relationship_service,
     relationship_type_service,
 )
@@ -13,6 +15,8 @@ __all__ = [
     "campaign_service",
     "entity_service",
     "owner_service",
+    "relationship_descriptor_resolver",
+    "relationship_mapper",
     "relationship_service",
     "relationship_type_service",
 ]

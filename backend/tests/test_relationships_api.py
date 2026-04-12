@@ -301,7 +301,9 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
         db_session.commit()
 
         descriptor_lookup_count = 0
-        original_get_relationship_type_descriptor = services.relationship_service.get_relationship_type_descriptor
+        original_get_relationship_type_descriptor = (
+            services.relationship_descriptor_resolver.get_relationship_type_descriptor
+        )
 
         def counting_get_relationship_type_descriptor(*args, **kwargs):
             nonlocal descriptor_lookup_count
@@ -309,7 +311,7 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
             return original_get_relationship_type_descriptor(*args, **kwargs)
 
         monkeypatch.setattr(
-            services.relationship_service,
+            services.relationship_descriptor_resolver,
             "get_relationship_type_descriptor",
             counting_get_relationship_type_descriptor,
         )
@@ -319,7 +321,7 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
             campaign_id=test_campaign.id,
         )
 
-        payloads = services.relationship_service.build_relationship_response_payloads(
+        payloads = services.relationship_mapper.build_relationship_response_payloads(
             db_session,
             relationships=listed_relationships,
         )

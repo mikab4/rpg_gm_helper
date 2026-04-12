@@ -10,11 +10,8 @@ from app.models import Entity, Relationship, SourceDocument
 from app.schemas import RelationshipCreate, RelationshipUpdate
 from app.services.campaign_lookup import ensure_campaign_exists
 from app.services.errors import ConflictError, NotFoundError
-from app.services.relationship_catalog import (
-    RelationshipTypeDescriptor,
-    get_relationship_type_descriptor,
-    list_relationship_type_descriptors_by_family,
-)
+from app.services.relationship_catalog import list_relationship_type_descriptors_by_family
+from app.services.relationship_descriptor_resolver import get_descriptor_or_raise
 
 
 def create_relationship(
@@ -75,7 +72,7 @@ def list_relationships(
         normalize_str_enum_value(RelationshipFamily, relationship_family) if relationship_family is not None else None
     )
     if relationship_type is not None:
-        relationship_descriptor = _get_descriptor_or_raise(
+        relationship_descriptor = get_descriptor_or_raise(
             db_session,
             campaign_id=campaign_id,
             relationship_type=relationship_type,
@@ -178,49 +175,6 @@ def delete_relationship(
     db_session.commit()
 
 
-def build_relationship_response_payload(
-    db_session: Session,
-    *,
-    relationship: Relationship,
-) -> dict[str, object]:
-    relationship_descriptor = _get_descriptor_or_raise(
-        db_session,
-        campaign_id=relationship.campaign_id,
-        relationship_type=relationship.relationship_type,
-    )
-    return _build_relationship_response_payload_from_descriptor(
-        relationship=relationship,
-        relationship_descriptor=relationship_descriptor,
-    )
-
-
-def build_relationship_response_payloads(
-    db_session: Session,
-    *,
-    relationships: list[Relationship],
-) -> list[dict[str, object]]:
-    descriptor_by_type_and_campaign: dict[tuple[UUID, str], RelationshipTypeDescriptor] = {}
-    for relationship in relationships:
-        descriptor_key = (relationship.campaign_id, relationship.relationship_type)
-        if descriptor_key in descriptor_by_type_and_campaign:
-            continue
-        descriptor_by_type_and_campaign[descriptor_key] = _get_descriptor_or_raise(
-            db_session,
-            campaign_id=relationship.campaign_id,
-            relationship_type=relationship.relationship_type,
-        )
-
-    return [
-        _build_relationship_response_payload_from_descriptor(
-            relationship=relationship,
-            relationship_descriptor=descriptor_by_type_and_campaign[
-                (relationship.campaign_id, relationship.relationship_type)
-            ],
-        )
-        for relationship in relationships
-    ]
-
-
 def _get_campaign_entity(
     db_session: Session,
     *,
@@ -279,50 +233,6 @@ def _validate_source_document(
         raise NotFoundError("Source document not found.")
 
 
-def _get_descriptor_or_raise(
-    db_session: Session,
-    *,
-    campaign_id: UUID,
-    relationship_type: str,
-) -> RelationshipTypeDescriptor:
-    relationship_descriptor = get_relationship_type_descriptor(
-        db_session,
-        relationship_type_key=relationship_type,
-        campaign_id=campaign_id,
-    )
-    if relationship_descriptor is None:
-        raise NotFoundError("Relationship type not found.")
-    return relationship_descriptor
-
-
-def _build_relationship_response_payload_from_descriptor(
-    *,
-    relationship: Relationship,
-    relationship_descriptor: RelationshipTypeDescriptor,
-) -> dict[str, object]:
-    return {
-        "id": relationship.id,
-        "campaign_id": relationship.campaign_id,
-        "source_entity_id": relationship.source_entity_id,
-        "target_entity_id": relationship.target_entity_id,
-        "relationship_type": relationship.relationship_type,
-        "relationship_family": relationship_descriptor.family,
-        "forward_label": relationship_descriptor.label,
-        "reverse_label": relationship_descriptor.reverse_label,
-        "is_symmetric": relationship_descriptor.is_symmetric,
-        "lifecycle_status": relationship.lifecycle_status,
-        "visibility_status": relationship.visibility_status,
-        "certainty_status": relationship.certainty_status,
-        "notes": relationship.notes,
-        "confidence": (float(relationship.confidence) if relationship.confidence is not None else None),
-        "source_document_id": relationship.source_document_id,
-        "provenance_excerpt": relationship.provenance_excerpt,
-        "provenance_data": relationship.provenance_data,
-        "created_at": relationship.created_at,
-        "updated_at": relationship.updated_at,
-    }
-
-
 def _validate_and_resolve_relationship_type(
     db_session: Session,
     *,
@@ -332,7 +242,7 @@ def _validate_and_resolve_relationship_type(
     target_entity: Entity,
     existing_relationship_id: UUID | None = None,
 ) -> str:
-    relationship_descriptor = _get_descriptor_or_raise(
+    relationship_descriptor = get_descriptor_or_raise(
         db_session,
         campaign_id=campaign_id,
         relationship_type=relationship_type,

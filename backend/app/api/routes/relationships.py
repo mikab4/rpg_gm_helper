@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_db_session
 from app.schemas import RelationshipCreate, RelationshipResponse, RelationshipUpdate
 from app.services import ConflictError, NotFoundError, relationship_service
+from app.services.relationship_mapper import (
+    build_relationship_response_payload,
+    build_relationship_response_payloads,
+)
 
 router = APIRouter()
 
@@ -42,7 +46,7 @@ def create_relationship(
         ) from exc
 
     return RelationshipResponse.model_validate(
-        relationship_service.build_relationship_response_payload(
+        build_relationship_response_payload(
             db_session,
             relationship=created_relationship,
         )
@@ -73,7 +77,7 @@ def list_relationships(
 
     return [
         RelationshipResponse.model_validate(listed_relationship_payload)
-        for listed_relationship_payload in relationship_service.build_relationship_response_payloads(
+        for listed_relationship_payload in build_relationship_response_payloads(
             db_session,
             relationships=listed_relationships,
         )
@@ -99,7 +103,7 @@ def get_relationship(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     return RelationshipResponse.model_validate(
-        relationship_service.build_relationship_response_payload(
+        build_relationship_response_payload(
             db_session,
             relationship=stored_relationship,
         )
@@ -134,7 +138,7 @@ def update_relationship(
         ) from exc
 
     return RelationshipResponse.model_validate(
-        relationship_service.build_relationship_response_payload(
+        build_relationship_response_payload(
             db_session,
             relationship=updated_relationship,
         )
