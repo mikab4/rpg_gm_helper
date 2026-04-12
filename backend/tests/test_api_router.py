@@ -22,3 +22,7 @@ def test_relationship_routes_are_grouped_under_separate_tags() -> None:
     assert tagged_paths[("/campaigns/{campaign_id}/relationships", frozenset({"POST"}))] == (
         "relationships",
     )
+    assert tagged_paths[("/compatibility/entity-types", frozenset({"GET"}))] == ("compatibility",)
+    assert tagged_paths[("/compatibility/entity-types/migrate", frozenset({"POST"}))] == (
+        "compatibility",
+    )

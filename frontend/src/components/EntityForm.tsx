@@ -1,6 +1,6 @@
 import { useMemo, useState, type SyntheticEvent } from "react";
 
-import { ENTITY_TYPE_OPTIONS } from "../entities/entityTypes";
+import { ENTITY_TYPE_OPTIONS, formatEntityTypeLabel } from "../entities/entityTypes";
 import type { Campaign } from "../types/campaigns";
 
 export type EntityFormValues = {
@@ -37,9 +37,10 @@ export function EntityForm({
   const [typeError, setTypeError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
-  const selectedCampaignId = useMemo(
-    () => fixedCampaignId ?? campaignId,
-    [campaignId, fixedCampaignId],
+  const selectedCampaignId = useMemo(() => fixedCampaignId ?? campaignId, [campaignId, fixedCampaignId]);
+  const hasLegacyTypeSelection = useMemo(
+    () => Boolean(type) && !ENTITY_TYPE_OPTIONS.some((entityTypeOption) => entityTypeOption.value === type),
+    [type],
   );
 
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
@@ -117,6 +118,7 @@ export function EntityForm({
           }}
         >
           <option value="">Select an entity type</option>
+          {hasLegacyTypeSelection ? <option value={type}>{formatEntityTypeLabel(type)} (legacy)</option> : null}
           {ENTITY_TYPE_OPTIONS.map((entityTypeOption) => (
             <option key={entityTypeOption.value} value={entityTypeOption.value}>
               {entityTypeOption.label}

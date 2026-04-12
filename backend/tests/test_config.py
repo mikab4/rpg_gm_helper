@@ -94,3 +94,25 @@ def test_settings_parse_cors_origins_from_env(monkeypatch: pytest.MonkeyPatch) -
         "http://127.0.0.1:5173",
     ]
     get_settings.cache_clear()
+
+
+def test_settings_default_auto_apply_migrations_to_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://test:test@localhost:5432/test_db")
+    monkeypatch.delenv("AUTO_APPLY_MIGRATIONS", raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.auto_apply_migrations is False
+
+
+def test_settings_parse_auto_apply_migrations_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://test:test@localhost:5432/test_db")
+    monkeypatch.setenv("AUTO_APPLY_MIGRATIONS", "true")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.auto_apply_migrations is True

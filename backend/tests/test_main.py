@@ -78,3 +78,47 @@ async def test_healthcheck_allows_frontend_origin_from_settings(
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+@pytest.mark.anyio
+async def test_app_startup_runs_pending_migrations_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
+    from app.main import create_app
+
+    migrated_settings: list[Settings] = []
+
+    def fake_apply_pending_migrations(settings: Settings) -> None:
+        migrated_settings.append(settings)
+
+    monkeypatch.setattr("app.main.apply_pending_migrations", fake_apply_pending_migrations)
+    settings = Settings(_env_file=None, auto_apply_migrations=True)
+    app = create_app(settings)
+
+    async with app.router.lifespan_context(app):
+        pass
+
+    assert migrated_settings == [settings]
+
+
+@pytest.mark.anyio
+async def test_app_startup_skips_pending_migrations_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
+    from app.main import create_app
+
+    migrated_settings: list[Settings] = []
+
+    def fake_apply_pending_migrations(settings: Settings) -> None:
+        migrated_settings.append(settings)
+
+    monkeypatch.setattr("app.main.apply_pending_migrations", fake_apply_pending_migrations)
+    settings = Settings(_env_file=None, auto_apply_migrations=False)
+    app = create_app(settings)
+
+    async with app.router.lifespan_context(app):
+        pass
+
+    assert migrated_settings == []

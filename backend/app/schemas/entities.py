@@ -3,14 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_serializer,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.enums import EntityType
 from app.schemas.entity_types import validate_entity_type
@@ -83,7 +76,7 @@ class EntityResponse(BaseModel):
 
     id: UUID
     campaign_id: UUID
-    type: EntityType
+    type: str
     name: str
     summary: str | None
     metadata: dict[str, object] = Field(
@@ -95,7 +88,3 @@ class EntityResponse(BaseModel):
     provenance_data: dict[str, object]
     created_at: datetime
     updated_at: datetime
-
-    @field_serializer("type")
-    def serialize_entity_type(self, entity_type: EntityType) -> str:
-        return entity_type.value

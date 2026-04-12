@@ -71,10 +71,123 @@ describe("campaign and entity frontend routes", () => {
     expect(screen.getByText("Urban intrigue campaign")).toBeInTheDocument();
     expect(screen.getByText(/Last Updated/i)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Campaign List" })).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Open workspace for Shadows of Glass" }),
-    ).toHaveAttribute("href", "/campaigns/campaign-1");
+    expect(screen.getByRole("link", { name: "Open workspace for Shadows of Glass" })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1",
+    );
     expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+  });
+
+  it("shows a blocking entity type migration flow until legacy mappings are applied", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    let compatibilityResolved = false;
+
+    const fetchSpy = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const requestUrl = getRequestUrl(input);
+
+      if (requestUrl.endsWith("/compatibility/entity-types")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: compatibilityResolved
+              ? { has_issues: false, issue_count: 0, issues: [] }
+              : {
+                  has_issues: true,
+                  issue_count: 1,
+                  issues: [
+                    {
+                      legacy_type: "npc",
+                      count: 2,
+                      example_entities: [
+                        {
+                          entity_id: "entity-1",
+                          entity_name: "Rowan",
+                          campaign_id: "campaign-1",
+                          campaign_name: "Shadows of Glass",
+                        },
+                      ],
+                    },
+                  ],
+                },
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/compatibility/entity-types/migrate")) {
+        compatibilityResolved = true;
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: {
+              updated_count: 2,
+              updated_types: [{ legacy_type: "npc", target_type: "person", updated_count: 2 }],
+            },
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/entities")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              {
+                id: "entity-1",
+                campaign_id: "campaign-1",
+                type: "person",
+                name: "Rowan",
+                summary: "Harbor ruler",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            ],
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns")) {
+        return Promise.resolve(jsonResponse({ ok: true, body: [] }));
+      }
+
+      return Promise.resolve(jsonResponse({ ok: true, body: [] }));
+    });
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/entities"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "Update Your Data Structure" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /We've improved how our system handles relationships. To keep your information accurate, please tell us how to categorize these legacy labels./i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: '"npc"' })).toBeInTheDocument();
+    expect(screen.getByText("2 affected records")).toBeInTheDocument();
+    expect(screen.getByText("Legacy Type")).toBeInTheDocument();
+    expect(screen.queryByText("Examples:")).toBeNull();
+    expect(screen.queryByText("Rowan (Shadows of Glass)")).toBeNull();
+    expect(screen.getByText(/This process is permanent once applied. Please review your mappings./i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Map npc to"), {
+      target: { value: "person" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Update and Apply Changes" }));
+
+    expect(await screen.findByRole("heading", { name: "World Browser" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith("http://example.test/api/entities", expect.objectContaining({ method: "GET" }));
+    });
+    expect(screen.getByText("Rowan")).toBeInTheDocument();
   });
 
   it("renders the campaign card itself as the workspace link", async () => {
@@ -140,10 +253,7 @@ describe("campaign and entity frontend routes", () => {
     const { container } = render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole("heading", { name: "Shadows of Glass" })).toHaveClass("font-ui");
-    expect(screen.getByRole("link", { name: "Back to Registry" })).toHaveAttribute(
-      "href",
-      "/campaigns",
-    );
+    expect(screen.getByRole("link", { name: "Back to Registry" })).toHaveAttribute("href", "/campaigns");
     expect(
       within(screen.getByRole("navigation", { name: "Campaign Sections" })).getByRole("link", {
         name: "Overview",
@@ -154,24 +264,448 @@ describe("campaign and entity frontend routes", () => {
         name: "Entities",
       }),
     ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "Campaign Sections" })).getByRole("link", {
+        name: "Relationships",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Campaign Summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recent Activity" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Quick Notes" })).toBeInTheDocument();
     expect(screen.getByText("Urban intrigue campaign")).toBeInTheDocument();
     expect(container.querySelector(".workspace-surface")).not.toBeNull();
+    expect(screen.queryByText("Create a campaign workspace before adding campaign-specific entities.")).toBeNull();
     expect(
-      screen.queryByText("Create a campaign workspace before adding campaign-specific entities."),
-    ).toBeNull();
-    expect(
-      screen.queryByText(
-        "Keep campaign descriptions short and practical in v1 so the table remains easy to scan.",
-      ),
+      screen.queryByText("Keep campaign descriptions short and practical in v1 so the table remains easy to scan."),
     ).toBeNull();
     expect(
       screen.queryByText(
         "This is the campaign cockpit summary: enough orientation to stay in flow now, with room for notes, relationships, and extraction surfaces later.",
       ),
     ).toBeNull();
+  });
+
+  it("renders the campaign relationships tab with readable relationship phrases", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    const fetchSpy = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const requestUrl = getRequestUrl(input);
+
+      if (requestUrl.endsWith("/campaigns/campaign-1")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: {
+              id: "campaign-1",
+              owner_id: "owner-1",
+              name: "Shadows of Glass",
+              description: "Urban intrigue campaign",
+              created_at: "2026-04-08T12:00:00Z",
+              updated_at: "2026-04-08T12:00:00Z",
+            },
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns/campaign-1/entities")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              {
+                id: "entity-1",
+                campaign_id: "campaign-1",
+                type: "person",
+                name: "Rowan",
+                summary: "Harbor ruler",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "entity-2",
+                campaign_id: "campaign-1",
+                type: "location",
+                name: "Blackharbor",
+                summary: "Port city",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "entity-3",
+                campaign_id: "campaign-1",
+                type: "location",
+                name: "Ash Provinces",
+                summary: "Regional territory",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "entity-4",
+                campaign_id: "campaign-1",
+                type: "organization",
+                name: "Harbor Watch",
+                summary: "City guard",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            ],
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns/campaign-1/relationships")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              {
+                id: "relationship-1",
+                campaign_id: "campaign-1",
+                source_entity_id: "entity-1",
+                target_entity_id: "entity-2",
+                relationship_type: "governs",
+                relationship_family: "political",
+                forward_label: "governs",
+                reverse_label: "governed by",
+                is_symmetric: false,
+                lifecycle_status: "current",
+                visibility_status: "public",
+                certainty_status: "confirmed",
+                notes: null,
+                confidence: null,
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "relationship-2",
+                campaign_id: "campaign-1",
+                source_entity_id: "entity-3",
+                target_entity_id: "entity-2",
+                relationship_type: "located_in",
+                relationship_family: "location",
+                forward_label: "is located in",
+                reverse_label: "contains",
+                is_symmetric: false,
+                lifecycle_status: "current",
+                visibility_status: "public",
+                certainty_status: "confirmed",
+                notes: null,
+                confidence: null,
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "relationship-3",
+                campaign_id: "campaign-1",
+                source_entity_id: "entity-1",
+                target_entity_id: "entity-4",
+                relationship_type: "leader_of",
+                relationship_family: "political",
+                forward_label: "leads",
+                reverse_label: "is led by",
+                is_symmetric: false,
+                lifecycle_status: "current",
+                visibility_status: "public",
+                certainty_status: "confirmed",
+                notes: null,
+                confidence: null,
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            ],
+          }),
+        );
+      }
+
+      if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              {
+                key: "governs",
+                label: "governs",
+                family: "political",
+                reverse_label: "governed by",
+                is_symmetric: false,
+                allowed_source_types: ["person", "organization"],
+                allowed_target_types: ["location", "organization"],
+                is_custom: false,
+                created_at: null,
+                updated_at: null,
+              },
+            ],
+          }),
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled request: ${requestUrl}`));
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1/relationships?entityId=entity-2"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "Relationships" })).toBeInTheDocument();
+    expect(await screen.findByText("Rowan governs Blackharbor")).toBeInTheDocument();
+    expect(screen.getByText("Ash Provinces is located in Blackharbor")).toBeInTheDocument();
+    expect(screen.queryByText("Rowan leads Harbor Watch")).toBeNull();
+    expect(screen.getByLabelText("Filter by entity")).toHaveValue("entity-2");
+    expect(screen.getAllByText("Current · Public · Confirmed")).toHaveLength(2);
+    expect(screen.queryByText("political · Current · Public · Confirmed")).toBeNull();
+    expect(screen.getByRole("link", { name: "New Relationship" })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/relationships/new",
+    );
+    expect(screen.getByRole("link", { name: "New Relationship Type" })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/relationship-types",
+    );
+    expect(screen.queryByRole("heading", { name: "Relationship Type Workbench" })).toBeNull();
+    expect(screen.queryByText("person, organization -> location, organization")).toBeNull();
+  });
+
+  it("guides relationship creation by group first and filters entity choices to valid types", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    const fetchSpy = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const requestUrl = getRequestUrl(input);
+
+      if (requestUrl.endsWith("/campaigns/campaign-1")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: {
+              id: "campaign-1",
+              owner_id: "owner-1",
+              name: "Shadows of Glass",
+              description: "Urban intrigue campaign",
+              created_at: "2026-04-08T12:00:00Z",
+              updated_at: "2026-04-08T12:00:00Z",
+            },
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns/campaign-1/entities")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              {
+                id: "entity-1",
+                campaign_id: "campaign-1",
+                type: "person",
+                name: "Rowan",
+                summary: "Harbor ruler",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "entity-2",
+                campaign_id: "campaign-1",
+                type: "location",
+                name: "Blackharbor",
+                summary: "Trade city",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "entity-3",
+                campaign_id: "campaign-1",
+                type: "organization",
+                name: "Harbor Watch",
+                summary: "City watch",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+              {
+                id: "entity-4",
+                campaign_id: "campaign-1",
+                type: "event",
+                name: "Night of Cinders",
+                summary: "Disaster",
+                metadata: {},
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            ],
+          }),
+        );
+      }
+
+      if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: [
+              {
+                key: "governs",
+                label: "governs",
+                family: "political",
+                reverse_label: "governed by",
+                is_symmetric: false,
+                allowed_source_types: ["person", "organization"],
+                allowed_target_types: ["location", "organization"],
+                is_custom: false,
+                created_at: null,
+                updated_at: null,
+              },
+              {
+                key: "member_of",
+                label: "member of",
+                family: "social",
+                reverse_label: "has member",
+                is_symmetric: false,
+                allowed_source_types: ["person"],
+                allowed_target_types: ["organization"],
+                is_custom: false,
+                created_at: null,
+                updated_at: null,
+              },
+              {
+                key: "sibling_of",
+                label: "sibling of",
+                family: "family",
+                reverse_label: "sibling of",
+                is_symmetric: true,
+                allowed_source_types: ["person"],
+                allowed_target_types: ["person"],
+                is_custom: false,
+                created_at: null,
+                updated_at: null,
+              },
+            ],
+          }),
+        );
+      }
+
+      if (requestUrl.endsWith("/campaigns/campaign-1/relationships") && init?.method === "POST") {
+        return Promise.resolve(
+          jsonResponse({
+            ok: true,
+            body: {
+              id: "relationship-1",
+              campaign_id: "campaign-1",
+              source_entity_id: "entity-1",
+              target_entity_id: "entity-2",
+              relationship_type: "governs",
+              relationship_family: "political",
+              forward_label: "governs",
+              reverse_label: "governed by",
+              is_symmetric: false,
+              lifecycle_status: "current",
+              visibility_status: "public",
+              certainty_status: "confirmed",
+              notes: null,
+              confidence: null,
+              source_document_id: null,
+              provenance_excerpt: null,
+              provenance_data: {},
+              created_at: "2026-04-08T12:00:00Z",
+              updated_at: "2026-04-08T12:00:00Z",
+            },
+          }),
+        );
+      }
+
+      throw new Error(`Unhandled request URL: ${requestUrl}`);
+    });
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1/relationships/new"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "New Relationship" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Source Entity"), {
+      target: { value: "entity-1" },
+    });
+
+    const groupSelect = screen.getByLabelText("Relationship Group");
+    expect(within(groupSelect).getByRole("option", { name: "Political" })).toBeInTheDocument();
+    expect(within(groupSelect).getByRole("option", { name: "Social" })).toBeInTheDocument();
+    expect(within(groupSelect).getByRole("option", { name: "Family" })).toBeInTheDocument();
+
+    fireEvent.change(groupSelect, {
+      target: { value: "political" },
+    });
+
+    const relationshipTypeSelect = screen.getByLabelText("Relationship Type");
+    expect(within(relationshipTypeSelect).getByRole("option", { name: "governs" })).toBeInTheDocument();
+    expect(within(relationshipTypeSelect).queryByRole("option", { name: "member of" })).toBeNull();
+
+    fireEvent.change(relationshipTypeSelect, {
+      target: { value: "governs" },
+    });
+
+    const targetEntitySelect = screen.getByLabelText("Target Entity");
+    expect(within(targetEntitySelect).getByRole("option", { name: "Blackharbor" })).toBeInTheDocument();
+    expect(within(targetEntitySelect).getByRole("option", { name: "Harbor Watch" })).toBeInTheDocument();
+    expect(within(targetEntitySelect).queryByRole("option", { name: "Night of Cinders" })).toBeNull();
+
+    fireEvent.change(targetEntitySelect, {
+      target: { value: "entity-2" },
+    });
+
+    expect(within(screen.getByLabelText("Source Entity")).queryByRole("option", { name: "Blackharbor" })).toBeNull();
+    expect(within(screen.getByLabelText("Source Entity")).queryByRole("option", { name: "Night of Cinders" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Relationship" }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "http://example.test/api/campaigns/campaign-1/relationships",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
   });
 
   it("keeps campaign quick notes locally across remounts", async () => {
@@ -277,18 +811,12 @@ describe("campaign and entity frontend routes", () => {
 
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole("link", { name: "Edit Campaign" })).toHaveAttribute(
-      "href",
-      "/campaigns/campaign-1/edit",
-    );
+    expect(await screen.findByRole("link", { name: "Edit Campaign" })).toHaveAttribute("href", "/campaigns/campaign-1/edit");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Campaign" }));
 
     expect(await screen.findByRole("heading", { name: "Campaign deleted" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to Campaigns" })).toHaveAttribute(
-      "href",
-      "/campaigns",
-    );
+    expect(screen.getByRole("link", { name: "Back to Campaigns" })).toHaveAttribute("href", "/campaigns");
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
@@ -439,9 +967,7 @@ describe("campaign and entity frontend routes", () => {
         "npc record in active use. Open the full record for campaign notes, editing, and deeper provenance.",
       ),
     ).toBeNull();
-    expect(
-      within(quickLookPanel).getByText("Brother of Rowan, magistrate of the lower ward."),
-    ).toBeInTheDocument();
+    expect(within(quickLookPanel).getByText("Brother of Rowan, magistrate of the lower ward.")).toBeInTheDocument();
     expect(within(quickLookPanel).getByRole("link", { name: "Full Profile" })).toHaveAttribute(
       "href",
       "/campaigns/campaign-1/entities/entity-1",
@@ -541,14 +1067,10 @@ describe("campaign and entity frontend routes", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(
-        "Use the campaign filter to narrow the list without losing the global entity entry point.",
-      ),
+      screen.queryByText("Use the campaign filter to narrow the list without losing the global entity entry point."),
     ).toBeNull();
     expect(
-      screen.queryByText(
-        "Entity rows keep their campaign context visible so global browsing does not hide ownership.",
-      ),
+      screen.queryByText("Entity rows keep their campaign context visible so global browsing does not hide ownership."),
     ).toBeNull();
     expect(await screen.findByText("Magistrate Ilya")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit Magistrate Ilya" })).toHaveAttribute(
@@ -636,14 +1158,179 @@ describe("campaign and entity frontend routes", () => {
     const quickLookPanel = await screen.findByRole("complementary", { name: "Entity quick look" });
     expect(quickLookPanel.className).toContain("quick-look-panel-paper");
 
+    expect(within(quickLookPanel).getByRole("heading", { name: "Relationships" })).toBeInTheDocument();
+    expect(within(quickLookPanel).queryByText("Relationship Scent")).toBeNull();
     expect(within(quickLookPanel).getByRole("link", { name: "Full Profile" })).toHaveAttribute(
       "href",
       "/campaigns/campaign-1/entities/entity-1",
+    );
+    expect(within(quickLookPanel).getByRole("link", { name: "Relationship Management" })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/relationships?entityId=entity-1",
     );
     expect(within(quickLookPanel).getByRole("link", { name: "Edit Entity" })).toHaveAttribute(
       "href",
       "/campaigns/campaign-1/entities/entity-1/edit",
     );
+  });
+
+  it("renders relationship type management on its own campaign route", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    let createdTypeVisible = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/campaigns/campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                id: "campaign-1",
+                owner_id: "owner-1",
+                name: "Shadows of Glass",
+                description: "Urban intrigue campaign",
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        if (requestUrl.endsWith("/campaigns/campaign-1/relationship-types") && init?.method === "POST") {
+          const requestBody = typeof init.body === "string" ? init.body : "";
+          const parsedBody = JSON.parse(requestBody) as { label: string };
+
+          if (parsedBody.label === "governs") {
+            return Promise.resolve(
+              jsonResponse({
+                ok: false,
+                status: 422,
+                body: {
+                  detail: "Relationship type label already exists for this campaign.",
+                },
+              }),
+            );
+          }
+
+          createdTypeVisible = true;
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              status: 201,
+              body: {
+                key: "bodyguard_of",
+                label: "bodyguard of",
+                family: "social",
+                reverse_label: "guarded by",
+                is_symmetric: false,
+                allowed_source_types: ["person"],
+                allowed_target_types: ["person", "organization"],
+                is_custom: true,
+                created_at: "2026-04-12T12:00:00Z",
+                updated_at: "2026-04-12T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: createdTypeVisible
+                ? [
+                    {
+                      key: "bodyguard_of",
+                      label: "bodyguard of",
+                      family: "social",
+                      reverse_label: "guarded by",
+                      is_symmetric: false,
+                      allowed_source_types: ["person"],
+                      allowed_target_types: ["person", "organization"],
+                      is_custom: true,
+                      created_at: "2026-04-12T12:00:00Z",
+                      updated_at: "2026-04-12T12:00:00Z",
+                    },
+                    {
+                      key: "governs",
+                      label: "governs",
+                      family: "political",
+                      reverse_label: "governed by",
+                      is_symmetric: false,
+                      allowed_source_types: ["person", "organization"],
+                      allowed_target_types: ["location", "organization"],
+                      is_custom: false,
+                      created_at: null,
+                      updated_at: null,
+                    },
+                  ]
+                : [
+                    {
+                      key: "governs",
+                      label: "governs",
+                      family: "political",
+                      reverse_label: "governed by",
+                      is_symmetric: false,
+                      allowed_source_types: ["person", "organization"],
+                      allowed_target_types: ["location", "organization"],
+                      is_custom: false,
+                      created_at: null,
+                      updated_at: null,
+                    },
+                  ],
+            }),
+          );
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
+    );
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1/relationship-types"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "Relationship Type Management" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back To Relationships" })).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/relationships",
+    );
+    expect(screen.getByRole("heading", { name: "Existing Relationship Types" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Allowed Source Type")).toBeInTheDocument();
+    expect(screen.getByLabelText("Allowed Target Type")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Custom Type Label"), {
+      target: { value: "governs" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Custom Type" }));
+
+    expect(
+      await screen.findByText("A relationship type with that label already exists in this campaign."),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Custom Type Label"), {
+      target: { value: "bodyguard of" },
+    });
+    fireEvent.change(screen.getByLabelText("Reverse Label"), {
+      target: { value: "guarded by" },
+    });
+    fireEvent.change(screen.getByLabelText("Allowed Target Type"), {
+      target: { value: "organization" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add target type" }));
+    expect(screen.getByRole("button", { name: "Remove Organization from target types" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Custom Type" }));
+
+    await waitFor(() => {
+      const typeCards = screen.getAllByRole("article");
+      expect(within(typeCards[0]).getByText("bodyguard of")).toBeInTheDocument();
+    });
   });
 
   it("renders the entity full profile on the main entity route", async () => {
@@ -769,8 +1456,8 @@ describe("campaign and entity frontend routes", () => {
     expect(await screen.findByRole("heading", { name: "Edit Entity" })).toBeInTheDocument();
     expect(container.querySelector(".workspace-surface")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Save Entity" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Type")).toHaveDisplayValue("NPC");
-    expect(screen.getByRole("option", { name: "Faction" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Type")).toHaveDisplayValue("NPC (legacy)");
+    expect(screen.getByRole("option", { name: "Organization" })).toBeInTheDocument();
   });
 
   it("requires campaign selection on the global new entity page", async () => {
@@ -811,16 +1498,12 @@ describe("campaign and entity frontend routes", () => {
 
     expect(await screen.findByRole("heading", { name: "New Entity" })).toBeInTheDocument();
     expect(
-      screen.queryByText(
-        "Create a new entity from the global entity tab while still choosing its owning campaign.",
-      ),
+      screen.queryByText("Create a new entity from the global entity tab while still choosing its owning campaign."),
     ).toBeNull();
     expect(
-      screen.queryByText(
-        "Metadata stays hidden in step 6 to keep the entity editor focused on the core CRUD path.",
-      ),
+      screen.queryByText("Metadata stays hidden in step 6 to keep the entity editor focused on the core CRUD path."),
     ).toBeNull();
-    expect(screen.getByLabelText("Type")).toHaveValue("");
+    expect(await screen.findByLabelText("Type")).toHaveValue("");
 
     fireEvent.click(screen.getByRole("button", { name: "Create Entity" }));
 
@@ -839,13 +1522,9 @@ describe("campaign and entity frontend routes", () => {
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole("heading", { name: "New Entity" })).toBeInTheDocument();
+    expect(screen.queryByText("Create a new entity directly inside this campaign workspace.")).toBeNull();
     expect(
-      screen.queryByText("Create a new entity directly inside this campaign workspace."),
-    ).toBeNull();
-    expect(
-      screen.queryByText(
-        "Metadata stays hidden in step 6 to keep the entity editor focused on the core CRUD path.",
-      ),
+      screen.queryByText("Metadata stays hidden in step 6 to keep the entity editor focused on the core CRUD path."),
     ).toBeNull();
   });
 
@@ -931,7 +1610,7 @@ describe("campaign and entity frontend routes", () => {
     expect(screen.queryByText("Broken Observatory")).toBeNull();
 
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -958,10 +1637,7 @@ describe("campaign and entity frontend routes", () => {
           );
         }
 
-        if (
-          requestUrl.endsWith("/campaigns/campaign-1/entities/entity-1") &&
-          init?.method !== "DELETE"
-        ) {
+        if (requestUrl.endsWith("/campaigns/campaign-1/entities/entity-1") && init?.method !== "DELETE") {
           return Promise.resolve(
             jsonResponse({
               ok: true,
@@ -982,10 +1658,7 @@ describe("campaign and entity frontend routes", () => {
           );
         }
 
-        if (
-          requestUrl.endsWith("/campaigns/campaign-1/entities/entity-1") &&
-          init?.method === "DELETE"
-        ) {
+        if (requestUrl.endsWith("/campaigns/campaign-1/entities/entity-1") && init?.method === "DELETE") {
           return Promise.resolve(
             jsonResponse({
               ok: false,

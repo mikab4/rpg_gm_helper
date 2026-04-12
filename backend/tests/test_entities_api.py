@@ -86,6 +86,27 @@ def test_list_all_entities_returns_cross_campaign_results(
     ]
 
 
+def test_list_all_entities_tolerates_legacy_entity_types_in_persisted_rows(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        db_session.add(
+            Entity(
+                campaign_id=test_campaign.id,
+                type="npc",
+                name="Legacy Rowan",
+            )
+        )
+        db_session.commit()
+
+    response = api_request("GET", "/api/entities")
+
+    assert response.status_code == 200
+    assert response.json()[0]["type"] == "npc"
+
+
 def test_list_all_entities_supports_campaign_and_type_filters(
     api_request,
     db_session_factory,

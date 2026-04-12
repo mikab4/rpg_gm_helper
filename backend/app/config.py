@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     database_url: str
     backend_cors_allowed_origins: Annotated[list[str], NoDecode] = []
+    auto_apply_migrations: bool = False
 
     model_config = SettingsConfigDict(env_file_encoding="utf-8")
 
