@@ -2,18 +2,27 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { getCampaign } from "../api/campaigns";
-import { getEntity } from "../api/entities";
+import { getEntity, listCampaignEntities } from "../api/entities";
+import { listRelationships } from "../api/relationships";
 import { PageHeader } from "../components/PageHeader";
 import { RequestStateBlock } from "../components/RequestStateBlock";
 import { SectionPanel } from "../components/SectionPanel";
 import { formatEntityTypeLabel } from "../entities/entityTypes";
+import { buildEntityNameMap, groupEntityRelationships } from "../relationships/presentation";
 import type { Campaign } from "../types/campaigns";
 import type { Entity } from "../types/entities";
+import type { Relationship } from "../types/relationships";
 
 type EntityDetailState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { campaign: Campaign; entity: Entity; status: "ready" };
+  | {
+      campaign: Campaign;
+      entity: Entity;
+      relationships: Relationship[];
+      relatedEntities: Entity[];
+      status: "ready";
+    };
 
 export function EntityDetailPage() {
   const { campaignId, entityId } = useParams();
@@ -33,7 +42,21 @@ export function EntityDetailPage() {
           getCampaign(campaignId, { signal: abortController.signal }),
           getEntity(campaignId, entityId, abortController.signal),
         ]);
-        setPageState({ campaign, entity, status: "ready" });
+
+        let relatedEntities: Entity[] = [];
+        let relationships: Relationship[] = [];
+
+        try {
+          [relatedEntities, relationships] = await Promise.all([
+            listCampaignEntities(campaignId, undefined, abortController.signal),
+            listRelationships(campaignId, { signal: abortController.signal }),
+          ]);
+        } catch {
+          relatedEntities = [entity];
+          relationships = [];
+        }
+
+        setPageState({ campaign, entity, relatedEntities, relationships, status: "ready" });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -54,19 +77,18 @@ export function EntityDetailPage() {
   }, [campaignId, entityId]);
 
   if (pageState.status === "loading") {
-    return (
-      <RequestStateBlock
-        message="Loading entity details and campaign context."
-        title="Loading entity"
-      />
-    );
+    return <RequestStateBlock message="Loading entity details and campaign context." title="Loading entity" />;
   }
 
   if (pageState.status === "error") {
-    return (
-      <RequestStateBlock message={pageState.message} title="Entity unavailable" tone="error" />
-    );
+    return <RequestStateBlock message={pageState.message} title="Entity unavailable" tone="error" />;
   }
+
+  const groupedRelationships = groupEntityRelationships(
+    pageState.entity.id,
+    pageState.relationships,
+    buildEntityNameMap(pageState.relatedEntities),
+  );
 
   return (
     <div className="page-stack workspace-surface">
@@ -77,9 +99,12 @@ export function EntityDetailPage() {
               Back To Campaign
             </Link>
             <Link
-              className="primary-button"
-              to={`/campaigns/${pageState.campaign.id}/entities/${pageState.entity.id}/edit`}
+              className="secondary-button"
+              to={`/campaigns/${pageState.campaign.id}/relationships?entityId=${pageState.entity.id}`}
             >
+              Relationships
+            </Link>
+            <Link className="primary-button" to={`/campaigns/${pageState.campaign.id}/entities/${pageState.entity.id}/edit`}>
               Edit Entity
             </Link>
           </div>
@@ -107,6 +132,24 @@ export function EntityDetailPage() {
               <dd>{new Date(pageState.entity.updatedAt).toLocaleString()}</dd>
             </div>
           </dl>
+        </SectionPanel>
+        <SectionPanel title="Relationship Profile">
+          {groupedRelationships.length > 0 ? (
+            <div className="grouped-relationship-sections">
+              {groupedRelationships.map((relationshipGroup) => (
+                <section key={relationshipGroup.family} className="relationship-group">
+                  <h4>{relationshipGroup.family}</h4>
+                  <ul className="relationship-group-list">
+                    {relationshipGroup.phrases.map((relationshipPhrase) => (
+                      <li key={relationshipPhrase}>{relationshipPhrase}</li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <p>No grouped relationships recorded yet.</p>
+          )}
         </SectionPanel>
       </div>
     </div>

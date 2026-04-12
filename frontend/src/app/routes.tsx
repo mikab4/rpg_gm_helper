@@ -4,6 +4,7 @@ import { AppShell } from "./AppShell";
 import { CampaignEntitiesTab } from "../routes/CampaignEntitiesTab";
 import { CampaignFormPage } from "../routes/CampaignFormPage";
 import { CampaignOverviewTab } from "../routes/CampaignOverviewTab";
+import { CampaignRelationshipsTab } from "../routes/CampaignRelationshipsTab";
 import { CampaignWorkspacePage } from "../routes/CampaignWorkspacePage";
 import { CampaignsPage } from "../routes/CampaignsPage";
 import { EntitiesPage } from "../routes/EntitiesPage";
@@ -12,6 +13,8 @@ import { EntityEditPage } from "../routes/EntityEditPage";
 import { EntityFormPage } from "../routes/EntityFormPage";
 import { OverviewPage } from "../routes/OverviewPage";
 import { PlaceholderPage } from "../routes/PlaceholderPage";
+import { RelationshipFormPage } from "../routes/RelationshipFormPage";
+import { RelationshipTypeManagementPage } from "../routes/RelationshipTypeManagementPage";
 
 export const routes: RouteObject[] = [
   {
@@ -42,6 +45,10 @@ export const routes: RouteObject[] = [
             path: "entities",
             element: <CampaignEntitiesTab />,
           },
+          {
+            path: "relationships",
+            element: <CampaignRelationshipsTab />,
+          },
         ],
       },
       {
@@ -59,6 +66,18 @@ export const routes: RouteObject[] = [
       {
         path: "campaigns/:campaignId/entities/:entityId/edit",
         element: <EntityEditPage />,
+      },
+      {
+        path: "campaigns/:campaignId/relationships/new",
+        element: <RelationshipFormPage mode="create" />,
+      },
+      {
+        path: "campaigns/:campaignId/relationship-types",
+        element: <RelationshipTypeManagementPage />,
+      },
+      {
+        path: "campaigns/:campaignId/relationships/:relationshipId/edit",
+        element: <RelationshipFormPage mode="edit" />,
       },
       {
         path: "entities",

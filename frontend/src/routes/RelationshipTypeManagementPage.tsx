@@ -1,0 +1,187 @@
+import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+import { getCampaign } from "../api/campaigns";
+import { ApiError } from "../api/client";
+import {
+  createRelationshipType,
+  deleteRelationshipType,
+  listRelationshipTypes,
+  updateRelationshipType,
+} from "../api/relationshipTypes";
+import { PageHeader } from "../components/PageHeader";
+import { RelationshipTypeManager } from "../components/RelationshipTypeManager";
+import { RequestStateBlock } from "../components/RequestStateBlock";
+import { SectionPanel } from "../components/SectionPanel";
+import type { Campaign } from "../types/campaigns";
+import type { RelationshipType, RelationshipTypeCreate, RelationshipTypeUpdate } from "../types/relationshipTypes";
+
+type RelationshipTypeManagementState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { campaign: Campaign; relationshipTypes: RelationshipType[]; status: "ready" };
+
+function getRelationshipTypeErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 422) {
+    if (error.message.toLowerCase().includes("already exists")) {
+      return "A relationship type with that label already exists in this campaign.";
+    }
+
+    return `This relationship type could not be saved. ${error.message}`;
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return "Something went wrong while saving the relationship type.";
+}
+
+export function RelationshipTypeManagementPage() {
+  const { campaignId } = useParams();
+  const [pageState, setPageState] = useState<RelationshipTypeManagementState>({ status: "loading" });
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    async function loadPageState() {
+      if (!campaignId) {
+        setPageState({ message: "Relationship type route is missing a campaign identifier.", status: "error" });
+        return;
+      }
+
+      try {
+        const [campaign, relationshipTypes] = await Promise.all([
+          getCampaign(campaignId, { signal: abortController.signal }),
+          listRelationshipTypes(campaignId),
+        ]);
+
+        setPageState({ campaign, relationshipTypes, status: "ready" });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setPageState({
+          message: error instanceof Error ? error.message : "Unknown relationship type load failure.",
+          status: "error",
+        });
+      }
+    }
+
+    void loadPageState();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [campaignId]);
+
+  async function reloadRelationshipTypes() {
+    if (!campaignId || pageState.status !== "ready") {
+      return;
+    }
+
+    const relationshipTypes = await listRelationshipTypes(campaignId);
+    setPageState({
+      campaign: pageState.campaign,
+      relationshipTypes,
+      status: "ready",
+    });
+  }
+
+  async function handleCreate(relationshipTypeCreate: RelationshipTypeCreate): Promise<boolean> {
+    if (!campaignId) {
+      return false;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await createRelationshipType(campaignId, relationshipTypeCreate);
+      await reloadRelationshipTypes();
+      return true;
+    } catch (error) {
+      setSubmitError(getRelationshipTypeErrorMessage(error));
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUpdate(relationshipTypeKey: string, relationshipTypeUpdate: RelationshipTypeUpdate) {
+    if (!campaignId) {
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await updateRelationshipType(campaignId, relationshipTypeKey, relationshipTypeUpdate);
+      await reloadRelationshipTypes();
+    } catch (error) {
+      setSubmitError(getRelationshipTypeErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(relationshipTypeKey: string) {
+    if (!campaignId) {
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await deleteRelationshipType(campaignId, relationshipTypeKey);
+      await reloadRelationshipTypes();
+    } catch (error) {
+      setSubmitError(getRelationshipTypeErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (pageState.status === "loading") {
+    return <RequestStateBlock message="Loading relationship type management." title="Loading relationship types" />;
+  }
+
+  if (pageState.status === "error") {
+    return <RequestStateBlock message={pageState.message} title="Relationship types unavailable" tone="error" />;
+  }
+
+  return (
+    <div className="page-stack workspace-surface">
+      <PageHeader
+        actions={
+          <div className="action-row">
+            <Link className="secondary-button" to={`/campaigns/${pageState.campaign.id}/relationships`}>
+              Back To Relationships
+            </Link>
+          </div>
+        }
+        description={`Campaign: ${pageState.campaign.name}`}
+        eyebrow="Relationship Types"
+        title="Relationship Type Management"
+      />
+      <SectionPanel
+        description="Create and maintain campaign-specific relationship types here, separate from the main relationship list."
+        title="Custom Relationship Types"
+      >
+        <RelationshipTypeManager
+          relationshipTypes={pageState.relationshipTypes}
+          submitError={submitError}
+          submitting={submitting}
+          onCreate={handleCreate}
+          onDelete={handleDelete}
+          onUpdate={handleUpdate}
+        />
+      </SectionPanel>
+    </div>
+  );
+}

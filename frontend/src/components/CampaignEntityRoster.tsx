@@ -7,6 +7,7 @@ type CampaignEntityRosterProps = {
   campaignNamesById?: Map<string, string>;
   entities: Entity[];
   onQuickLook?: (entity: Entity) => void;
+  relationshipPreviewByEntityId?: Map<string, string[]>;
   showCampaignName?: boolean;
 };
 
@@ -14,6 +15,7 @@ export function CampaignEntityRoster({
   campaignNamesById = new Map<string, string>(),
   entities,
   onQuickLook,
+  relationshipPreviewByEntityId = new Map<string, string[]>(),
   showCampaignName = false,
 }: CampaignEntityRosterProps) {
   return (
@@ -43,13 +45,18 @@ export function CampaignEntityRoster({
                 <h4 className="entity-roster-title">{entity.name}</h4>
                 <span className="entity-type-pill">{formatEntityTypeLabel(entity.type)}</span>
               </div>
-              <p className="entity-roster-summary">
-                {entity.summary ?? "No relationship scent recorded yet."}
-              </p>
+              <p className="entity-roster-summary">{entity.summary ?? "No relationship scent recorded yet."}</p>
+              {relationshipPreviewByEntityId.get(entity.id)?.length ? (
+                <div className="relationship-preview-list">
+                  {relationshipPreviewByEntityId.get(entity.id)?.map((relationshipPreview) => (
+                    <span key={relationshipPreview} className="relationship-preview-pill">
+                      {relationshipPreview}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               {showCampaignName ? (
-                <p className="entity-roster-campaign">
-                  {campaignNamesById.get(entity.campaignId) ?? entity.campaignId}
-                </p>
+                <p className="entity-roster-campaign">{campaignNamesById.get(entity.campaignId) ?? entity.campaignId}</p>
               ) : null}
             </div>
           </div>

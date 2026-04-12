@@ -9,9 +9,7 @@ export function CampaignWorkspaceTabs({ campaignId }: CampaignWorkspaceTabsProps
     <nav aria-label="Campaign Sections" className="campaign-workspace-tabs">
       <NavLink
         className={({ isActive }) =>
-          isActive
-            ? "campaign-workspace-tab campaign-workspace-tab-active"
-            : "campaign-workspace-tab"
+          isActive ? "campaign-workspace-tab campaign-workspace-tab-active" : "campaign-workspace-tab"
         }
         end
         to={`/campaigns/${campaignId}`}
@@ -20,13 +18,19 @@ export function CampaignWorkspaceTabs({ campaignId }: CampaignWorkspaceTabsProps
       </NavLink>
       <NavLink
         className={({ isActive }) =>
-          isActive
-            ? "campaign-workspace-tab campaign-workspace-tab-active"
-            : "campaign-workspace-tab"
+          isActive ? "campaign-workspace-tab campaign-workspace-tab-active" : "campaign-workspace-tab"
         }
         to={`/campaigns/${campaignId}/entities`}
       >
         Entities
+      </NavLink>
+      <NavLink
+        className={({ isActive }) =>
+          isActive ? "campaign-workspace-tab campaign-workspace-tab-active" : "campaign-workspace-tab"
+        }
+        to={`/campaigns/${campaignId}/relationships`}
+      >
+        Relationships
       </NavLink>
     </nav>
   );
