@@ -1,5 +1,6 @@
 import type { Entity } from "../types/entities";
 import type { Relationship } from "../types/relationships";
+import { formatRelationshipFamilyLabel } from "./domain";
 
 const IMPORTANT_RELATIONSHIP_TYPES = [
   "governs",
@@ -13,16 +14,6 @@ const IMPORTANT_RELATIONSHIP_TYPES = [
   "spouse_of",
   "sibling_of",
 ] as const;
-
-const FAMILY_LABELS = new Map<string, string>([
-  ["family", "Family"],
-  ["political", "Political And Social"],
-  ["social", "Political And Social"],
-  ["romance", "Political And Social"],
-  ["location", "Place And Context"],
-  ["organizational", "Place And Context"],
-  ["other", "Other"],
-]);
 
 export function buildEntityNameMap(entities: Entity[]): Map<string, Entity> {
   return new Map(entities.map((entity) => [entity.id, entity]));
@@ -91,7 +82,7 @@ export function groupEntityRelationships(
       continue;
     }
 
-    const familyLabel = FAMILY_LABELS.get(relationship.relationshipFamily) ?? relationship.relationshipFamily;
+    const familyLabel = formatRelationshipFamilyLabel(relationship.relationshipFamily);
     const existingFamilyGroup = groupedRelationships.get(familyLabel) ?? [];
     existingFamilyGroup.push(buildRelationshipPhrase(relationship, entitiesById, entityId));
     groupedRelationships.set(familyLabel, existingFamilyGroup);
