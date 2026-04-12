@@ -708,6 +708,152 @@ describe("campaign and entity frontend routes", () => {
     });
   });
 
+  it("keeps an incompatible saved relationship visible on edit and warns instead of clearing it", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const requestUrl = getRequestUrl(input);
+
+        if (requestUrl.endsWith("/campaigns/campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                id: "campaign-1",
+                owner_id: "owner-1",
+                name: "Shadows of Glass",
+                description: "Urban intrigue campaign",
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        if (requestUrl.endsWith("/campaigns/campaign-1/entities")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                {
+                  id: "entity-1",
+                  campaign_id: "campaign-1",
+                  type: "person",
+                  name: "Rowan",
+                  summary: "Harbor ruler",
+                  metadata: {},
+                  source_document_id: null,
+                  provenance_excerpt: null,
+                  provenance_data: {},
+                  created_at: "2026-04-08T12:00:00Z",
+                  updated_at: "2026-04-08T12:00:00Z",
+                },
+                {
+                  id: "entity-2",
+                  campaign_id: "campaign-1",
+                  type: "person",
+                  name: "Blackharbor",
+                  summary: "Now modeled incorrectly for compatibility testing",
+                  metadata: {},
+                  source_document_id: null,
+                  provenance_excerpt: null,
+                  provenance_data: {},
+                  created_at: "2026-04-08T12:00:00Z",
+                  updated_at: "2026-04-08T12:00:00Z",
+                },
+                {
+                  id: "entity-3",
+                  campaign_id: "campaign-1",
+                  type: "organization",
+                  name: "Harbor Watch",
+                  summary: "City watch",
+                  metadata: {},
+                  source_document_id: null,
+                  provenance_excerpt: null,
+                  provenance_data: {},
+                  created_at: "2026-04-08T12:00:00Z",
+                  updated_at: "2026-04-08T12:00:00Z",
+                },
+              ],
+            }),
+          );
+        }
+
+        if (requestUrl.includes("/relationship-types?campaign_id=campaign-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: [
+                {
+                  key: "governs",
+                  label: "governs",
+                  family: "political",
+                  reverse_label: "governed by",
+                  is_symmetric: false,
+                  allowed_source_types: ["person", "organization"],
+                  allowed_target_types: ["location", "organization"],
+                  is_custom: false,
+                  created_at: null,
+                  updated_at: null,
+                },
+              ],
+            }),
+          );
+        }
+
+        if (requestUrl.endsWith("/campaigns/campaign-1/relationships/relationship-1")) {
+          return Promise.resolve(
+            jsonResponse({
+              ok: true,
+              body: {
+                id: "relationship-1",
+                campaign_id: "campaign-1",
+                source_entity_id: "entity-1",
+                target_entity_id: "entity-2",
+                relationship_type: "governs",
+                relationship_family: "political",
+                forward_label: "governs",
+                reverse_label: "governed by",
+                is_symmetric: false,
+                lifecycle_status: "current",
+                visibility_status: "public",
+                certainty_status: "confirmed",
+                notes: "Persisted before the target type changed.",
+                confidence: null,
+                source_document_id: null,
+                provenance_excerpt: null,
+                provenance_data: {},
+                created_at: "2026-04-08T12:00:00Z",
+                updated_at: "2026-04-08T12:00:00Z",
+              },
+            }),
+          );
+        }
+
+        throw new Error(`Unhandled request URL: ${requestUrl}`);
+      }),
+    );
+
+    const { routes } = await import("../app/routes");
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/campaigns/campaign-1/relationships/relationship-1/edit"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "Edit Relationship" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/This saved relationship no longer matches the current entity or type rules/i),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Source Entity")).toHaveValue("entity-1");
+    expect(screen.getByLabelText("Target Entity")).toHaveValue("entity-2");
+    expect(screen.getByLabelText("Relationship Group")).toHaveValue("political");
+    expect(screen.getByLabelText("Relationship Type")).toHaveValue("governs");
+    expect(screen.getByRole("option", { name: /governs \(saved, now incompatible\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Blackharbor \(saved, now incompatible\)/i })).toBeInTheDocument();
+  });
+
   it("keeps campaign quick notes locally across remounts", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://example.test/api");
     vi.stubGlobal(

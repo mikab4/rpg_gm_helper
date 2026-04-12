@@ -56,14 +56,23 @@ export function RelationshipForm({
   const [visibilityStatus, setVisibilityStatus] = useState(initialValues.visibilityStatus);
   const [certaintyStatus, setCertaintyStatus] = useState(initialValues.certaintyStatus);
   const [notes, setNotes] = useState(initialValues.notes);
+  const [hasUserChangedRelationshipTypeConstraints, setHasUserChangedRelationshipTypeConstraints] = useState(false);
 
   const selectedRelationshipType = useMemo(
     () => relationshipTypes.find((typeOption) => typeOption.key === relationshipType),
     [relationshipType, relationshipTypes],
   );
+  const selectedSourceEntity = useMemo(
+    () => entities.find((entity) => entity.id === sourceEntityId) ?? null,
+    [entities, sourceEntityId],
+  );
+  const selectedTargetEntity = useMemo(
+    () => entities.find((entity) => entity.id === targetEntityId) ?? null,
+    [entities, targetEntityId],
+  );
 
-  const sourceEntityType = entities.find((entity) => entity.id === sourceEntityId)?.type;
-  const targetEntityType = entities.find((entity) => entity.id === targetEntityId)?.type;
+  const sourceEntityType = selectedSourceEntity?.type;
+  const targetEntityType = selectedTargetEntity?.type;
 
   const compatibleRelationshipTypes = relationshipTypes.filter((typeOption) => {
     if (!sourceEntityType || !targetEntityType) {
@@ -99,6 +108,13 @@ export function RelationshipForm({
     () => Array.from(new Set(compatibleRelationshipTypes.map((typeOption) => typeOption.family))),
     [compatibleRelationshipTypes],
   );
+  const relationshipGroupOptions = useMemo(() => {
+    if (relationshipGroup && !availableRelationshipGroups.includes(relationshipGroup)) {
+      return [relationshipGroup, ...availableRelationshipGroups];
+    }
+
+    return availableRelationshipGroups;
+  }, [availableRelationshipGroups, relationshipGroup]);
 
   const groupedRelationshipTypes = compatibleRelationshipTypes.filter((typeOption) =>
     relationshipGroup ? typeOption.family === relationshipGroup : true,
@@ -107,27 +123,82 @@ export function RelationshipForm({
   const selectedRelationshipGroupIsAvailable =
     relationshipGroup === "" || availableRelationshipGroups.includes(relationshipGroup);
 
-  const sourceEntityOptions = entities.filter((entity) => {
-    if (!selectedRelationshipType) {
-      return true;
+  const isSelectedRelationshipTypeCompatible =
+    !selectedRelationshipType ||
+    compatibleRelationshipTypes.some((typeOption) => typeOption.key === selectedRelationshipType.key);
+
+  const isSelectedSourceEntityCompatible =
+    !selectedRelationshipType ||
+    !selectedSourceEntity ||
+    (isEntityTypeValue(selectedSourceEntity.type) &&
+      selectedRelationshipType.allowedSourceTypes.includes(selectedSourceEntity.type));
+
+  const isSelectedTargetEntityCompatible =
+    !selectedRelationshipType ||
+    !selectedTargetEntity ||
+    (isEntityTypeValue(selectedTargetEntity.type) &&
+      selectedRelationshipType.allowedTargetTypes.includes(selectedTargetEntity.type));
+
+  const hasIncompatibleSavedSelection =
+    Boolean(initialValues.relationshipType || initialValues.sourceEntityId || initialValues.targetEntityId) &&
+    (!isSelectedRelationshipTypeCompatible ||
+      !isSelectedSourceEntityCompatible ||
+      !isSelectedTargetEntityCompatible ||
+      !selectedRelationshipGroupIsAvailable);
+
+  const relationshipTypeOptions = useMemo(() => {
+    const options = [...groupedRelationshipTypes];
+
+    if (
+      selectedRelationshipType &&
+      relationshipGroup === selectedRelationshipType.family &&
+      !options.some((typeOption) => typeOption.key === selectedRelationshipType.key)
+    ) {
+      options.unshift(selectedRelationshipType);
     }
 
-    return isEntityTypeValue(entity.type) && selectedRelationshipType.allowedSourceTypes.includes(entity.type);
-  });
+    return options;
+  }, [groupedRelationshipTypes, relationshipGroup, selectedRelationshipType]);
 
-  const targetEntityOptions = entities.filter((entity) => {
-    if (!selectedRelationshipType) {
-      return true;
+  const sourceEntityOptions = useMemo(() => {
+    const compatibleEntities = entities.filter((entity) => {
+      if (!selectedRelationshipType) {
+        return true;
+      }
+
+      return isEntityTypeValue(entity.type) && selectedRelationshipType.allowedSourceTypes.includes(entity.type);
+    });
+
+    if (selectedSourceEntity && !compatibleEntities.some((entity) => entity.id === selectedSourceEntity.id)) {
+      return [selectedSourceEntity, ...compatibleEntities];
     }
 
-    return isEntityTypeValue(entity.type) && selectedRelationshipType.allowedTargetTypes.includes(entity.type);
-  });
+    return compatibleEntities;
+  }, [entities, selectedRelationshipType, selectedSourceEntity]);
+
+  const targetEntityOptions = useMemo(() => {
+    const compatibleEntities = entities.filter((entity) => {
+      if (!selectedRelationshipType) {
+        return true;
+      }
+
+      return isEntityTypeValue(entity.type) && selectedRelationshipType.allowedTargetTypes.includes(entity.type);
+    });
+
+    if (selectedTargetEntity && !compatibleEntities.some((entity) => entity.id === selectedTargetEntity.id)) {
+      return [selectedTargetEntity, ...compatibleEntities];
+    }
+
+    return compatibleEntities;
+  }, [entities, selectedRelationshipType, selectedTargetEntity]);
 
   useEffect(() => {
     if (!selectedRelationshipGroupIsAvailable) {
-      setRelationshipGroup("");
+      if (hasUserChangedRelationshipTypeConstraints) {
+        setRelationshipGroup("");
+      }
     }
-  }, [selectedRelationshipGroupIsAvailable]);
+  }, [hasUserChangedRelationshipTypeConstraints, selectedRelationshipGroupIsAvailable]);
 
   useEffect(() => {
     if (!relationshipType) {
@@ -137,14 +208,22 @@ export function RelationshipForm({
     const selectedTypeIsAvailable = compatibleRelationshipTypes.some((typeOption) => typeOption.key === relationshipType);
 
     if (!selectedTypeIsAvailable) {
-      setRelationshipType("");
+      if (hasUserChangedRelationshipTypeConstraints) {
+        setRelationshipType("");
+      }
       return;
     }
 
     if (selectedRelationshipType && selectedRelationshipType.family !== relationshipGroup) {
       setRelationshipGroup(selectedRelationshipType.family);
     }
-  }, [compatibleRelationshipTypes, relationshipGroup, relationshipType, selectedRelationshipType]);
+  }, [
+    compatibleRelationshipTypes,
+    hasUserChangedRelationshipTypeConstraints,
+    relationshipGroup,
+    relationshipType,
+    selectedRelationshipType,
+  ]);
 
   useEffect(() => {
     if (!sourceEntityId) {
@@ -153,10 +232,10 @@ export function RelationshipForm({
 
     const selectedSourceStillAllowed = sourceEntityOptions.some((entity) => entity.id === sourceEntityId);
 
-    if (!selectedSourceStillAllowed) {
+    if (!selectedSourceStillAllowed && hasUserChangedRelationshipTypeConstraints) {
       setSourceEntityId("");
     }
-  }, [sourceEntityId, sourceEntityOptions]);
+  }, [hasUserChangedRelationshipTypeConstraints, sourceEntityId, sourceEntityOptions]);
 
   useEffect(() => {
     if (!targetEntityId) {
@@ -165,10 +244,10 @@ export function RelationshipForm({
 
     const selectedTargetStillAllowed = targetEntityOptions.some((entity) => entity.id === targetEntityId);
 
-    if (!selectedTargetStillAllowed) {
+    if (!selectedTargetStillAllowed && hasUserChangedRelationshipTypeConstraints) {
       setTargetEntityId("");
     }
-  }, [targetEntityId, targetEntityOptions]);
+  }, [hasUserChangedRelationshipTypeConstraints, targetEntityId, targetEntityOptions]);
 
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -191,6 +270,11 @@ export function RelationshipForm({
         void handleSubmit(event);
       }}
     >
+      {hasIncompatibleSavedSelection ? (
+        <p className="field-error">
+          This saved relationship no longer matches the current entity or type rules. Review it before saving.
+        </p>
+      ) : null}
       <label className="field">
         <span className="field-label">Source Entity</span>
         <select
@@ -203,6 +287,9 @@ export function RelationshipForm({
           {sourceEntityOptions.map((entity) => (
             <option key={entity.id} value={entity.id}>
               {entity.name}
+              {entity.id === selectedSourceEntity?.id && !isSelectedSourceEntityCompatible
+                ? " (saved, now incompatible)"
+                : ""}
             </option>
           ))}
         </select>
@@ -212,6 +299,7 @@ export function RelationshipForm({
         <select
           value={relationshipGroup}
           onChange={(event) => {
+            setHasUserChangedRelationshipTypeConstraints(true);
             const nextRelationshipGroup = event.target.value as RelationshipFamilyValue | "";
             setRelationshipGroup(nextRelationshipGroup);
 
@@ -225,9 +313,12 @@ export function RelationshipForm({
           }}
         >
           <option value="">Select relationship group</option>
-          {availableRelationshipGroups.map((groupOption) => (
+          {relationshipGroupOptions.map((groupOption) => (
             <option key={groupOption} value={groupOption}>
               {formatRelationshipFamilyLabel(groupOption)}
+              {groupOption === relationshipGroup && !selectedRelationshipGroupIsAvailable
+                ? " (saved, now incompatible)"
+                : ""}
             </option>
           ))}
         </select>
@@ -238,13 +329,17 @@ export function RelationshipForm({
           disabled={!relationshipGroup}
           value={relationshipType}
           onChange={(event) => {
+            setHasUserChangedRelationshipTypeConstraints(true);
             setRelationshipType(event.target.value);
           }}
         >
           <option value="">{relationshipGroup ? "Select relationship type" : "Select relationship group first"}</option>
-          {groupedRelationshipTypes.map((typeOption) => (
+          {relationshipTypeOptions.map((typeOption) => (
             <option key={typeOption.key} value={typeOption.key}>
               {typeOption.label}
+              {typeOption.key === selectedRelationshipType?.key && !isSelectedRelationshipTypeCompatible
+                ? " (saved, now incompatible)"
+                : ""}
             </option>
           ))}
         </select>
@@ -261,6 +356,9 @@ export function RelationshipForm({
           {targetEntityOptions.map((entity) => (
             <option key={entity.id} value={entity.id}>
               {entity.name}
+              {entity.id === selectedTargetEntity?.id && !isSelectedTargetEntityCompatible
+                ? " (saved, now incompatible)"
+                : ""}
             </option>
           ))}
         </select>
