@@ -1,5 +1,35 @@
 # Possible Technical Debt
 
+## Entity subtype detail tables
+
+Current recommendation for the v1 schema is to keep one generic `entities` table with flexible `metadata`, because that matches the current CRUD, provenance, and future extraction workflow well.
+
+A stronger medium-term alternative is to keep `entities` as the shared canonical root and add 1-to-1 subtype detail tables for entity types that now have stable, meaningful structured fields.
+
+Example direction:
+- `entities` keeps shared fields such as `id`, `campaign_id`, `type`, `name`, `summary`, provenance, and timestamps.
+- `entity_person_details` uses `entity_id` as both primary key and foreign key to `entities.id`.
+- `entity_event_details` uses `entity_id` as both primary key and foreign key to `entities.id`.
+- `entity_deity_details` uses `entity_id` as both primary key and foreign key to `entities.id`.
+
+Why this may be worth doing later, and possibly before extraction becomes deeper:
+- It gives stronger validation for mature type-specific fields such as person attributes, event timeline fields, or deity domains.
+- It makes filtering, sorting, and indexing cleaner than storing everything in `metadata`.
+- It keeps one shared entity identity for relationships, search, provenance, and campaign scoping.
+- It gives extraction a clearer target shape for stable fields once typed extraction becomes important.
+- It avoids the weaker long-term ergonomics of keeping all mature typed fields inside JSON metadata.
+
+Why this was deferred now:
+- The current milestone still benefits from one uniform entity shape.
+- The project has not yet committed to which typed fields are truly stable enough to deserve schema columns.
+- Adding subtype tables too early would increase migrations, service branching, API surface, and form complexity before those benefits are clearly worth it.
+- `metadata` remains the cheaper option for exploratory, sparse, or low-confidence attributes.
+
+Important nuance:
+- This is not a recommendation to replace `entities` with fully separate top-level tables like `characters`, `events`, and `deities`.
+- The better likely direction is a hybrid model: keep `entities` as the root table and add subtype detail tables only for mature, query-heavy types.
+- That preserves the current advantages of a generic entity system while allowing stronger structure where the domain has stabilized.
+
 ## App-managed database wiring
 
 Current recommendation for the reviewed import-time DB issue was to remove module-level globals and keep explicit factories in `backend/app/db.py`.
