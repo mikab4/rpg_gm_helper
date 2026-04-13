@@ -69,6 +69,7 @@ Backend:
 - run the API with `uv run uvicorn app.main:app --reload` from `backend/`
 - run `uv run ruff format` and `uv run ruff check` for Python changes
 - run tests with `uv run pytest`
+- backend tests now prefer explicit factory fixtures such as `owner_factory`, `campaign_factory`, and `entity_factory` for scenario data; `conftest.py` keeps infrastructure plumbing, while test files keep the relevant data visible in Arrange
 
 Frontend:
 - run `npm install` inside `frontend/`

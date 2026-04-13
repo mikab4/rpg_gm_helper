@@ -2,17 +2,18 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.models.campaign import Campaign
 from app.models.entity import Entity
 
 
 def test_create_entity_returns_created_record(
     api_request,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     response = api_request(
         "POST",
-        f"/api/campaigns/{test_campaign.id}/entities",
+        f"/api/campaigns/{stored_campaign.id}/entities",
         json={
             "type": "person",
             "name": "Magistrate Ilya",
@@ -22,7 +23,7 @@ def test_create_entity_returns_created_record(
     )
 
     assert response.status_code == 201
-    assert response.json()["campaign_id"] == str(test_campaign.id)
+    assert response.json()["campaign_id"] == str(stored_campaign.id)
     assert response.json()["type"] == "person"
     assert response.json()["name"] == "Magistrate Ilya"
     assert response.json()["metadata"] == {"faction": "City Watch"}
@@ -44,11 +45,13 @@ def test_create_entity_returns_not_found_for_unknown_campaign(api_request) -> No
 
 def test_create_entity_returns_422_for_blank_name(
     api_request,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     response = api_request(
         "POST",
-        f"/api/campaigns/{test_campaign.id}/entities",
+        f"/api/campaigns/{stored_campaign.id}/entities",
         json={
             "type": "person",
             "name": "   ",
@@ -61,17 +64,23 @@ def test_create_entity_returns_422_for_blank_name(
 def test_list_all_entities_returns_cross_campaign_results(
     api_request,
     db_session_factory,
-    test_owner,
-    test_campaign: Campaign,
+    owner_factory,
+    campaign_factory,
 ) -> None:
+    owner = owner_factory()
+    stored_campaign = campaign_factory(owner=owner)
+
     with db_session_factory() as db_session:
-        second_campaign = Campaign(owner_id=test_owner.id, name="Second Campaign")
-        db_session.add(second_campaign)
-        db_session.flush()
+        second_campaign = campaign_factory(
+            db_session=db_session,
+            owner_id=owner.id,
+            owner=owner,
+            name="Second Campaign",
+        )
 
         db_session.add_all(
             [
-                Entity(campaign_id=test_campaign.id, type="person", name="Magistrate Ilya"),
+                Entity(campaign_id=stored_campaign.id, type="person", name="Magistrate Ilya"),
                 Entity(campaign_id=second_campaign.id, type="organization", name="Varkesh"),
             ]
         )
@@ -89,12 +98,14 @@ def test_list_all_entities_returns_cross_campaign_results(
 def test_list_all_entities_tolerates_legacy_entity_types_in_persisted_rows(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         db_session.add(
             Entity(
-                campaign_id=test_campaign.id,
+                campaign_id=stored_campaign.id,
                 type="npc",
                 name="Legacy Rowan",
             )
@@ -110,18 +121,24 @@ def test_list_all_entities_tolerates_legacy_entity_types_in_persisted_rows(
 def test_list_all_entities_supports_campaign_and_type_filters(
     api_request,
     db_session_factory,
-    test_owner,
-    test_campaign: Campaign,
+    owner_factory,
+    campaign_factory,
 ) -> None:
+    owner = owner_factory()
+    stored_campaign = campaign_factory(owner=owner)
+
     with db_session_factory() as db_session:
-        second_campaign = Campaign(owner_id=test_owner.id, name="Second Campaign")
-        db_session.add(second_campaign)
-        db_session.flush()
+        second_campaign = campaign_factory(
+            db_session=db_session,
+            owner_id=owner.id,
+            owner=owner,
+            name="Second Campaign",
+        )
 
         db_session.add_all(
             [
-                Entity(campaign_id=test_campaign.id, type="person", name="Magistrate Ilya"),
-                Entity(campaign_id=test_campaign.id, type="location", name="Broken Observatory"),
+                Entity(campaign_id=stored_campaign.id, type="person", name="Magistrate Ilya"),
+                Entity(campaign_id=stored_campaign.id, type="location", name="Broken Observatory"),
                 Entity(campaign_id=second_campaign.id, type="person", name="Varkesh"),
             ]
         )
@@ -131,7 +148,7 @@ def test_list_all_entities_supports_campaign_and_type_filters(
         "GET",
         "/api/entities",
         params={
-            "campaign_id": str(test_campaign.id),
+            "campaign_id": str(stored_campaign.id),
             "type": "person",
         },
     )
@@ -143,20 +160,22 @@ def test_list_all_entities_supports_campaign_and_type_filters(
 def test_list_campaign_entities_supports_type_filter(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         db_session.add_all(
             [
-                Entity(campaign_id=test_campaign.id, type="person", name="Magistrate Ilya"),
-                Entity(campaign_id=test_campaign.id, type="location", name="Broken Observatory"),
+                Entity(campaign_id=stored_campaign.id, type="person", name="Magistrate Ilya"),
+                Entity(campaign_id=stored_campaign.id, type="location", name="Broken Observatory"),
             ]
         )
         db_session.commit()
 
     response = api_request(
         "GET",
-        f"/api/campaigns/{test_campaign.id}/entities",
+        f"/api/campaigns/{stored_campaign.id}/entities",
         params={"type": "person"},
     )
 
@@ -167,11 +186,13 @@ def test_list_campaign_entities_supports_type_filter(
 def test_get_entity_returns_stored_record(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         stored_entity = Entity(
-            campaign_id=test_campaign.id,
+            campaign_id=stored_campaign.id,
             type="person",
             name="Magistrate Ilya",
             summary="Before update",
@@ -183,7 +204,7 @@ def test_get_entity_returns_stored_record(
 
     get_response = api_request(
         "GET",
-        f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
+        f"/api/campaigns/{stored_campaign.id}/entities/{stored_entity_id}",
     )
 
     assert get_response.status_code == 200
@@ -193,11 +214,13 @@ def test_get_entity_returns_stored_record(
 def test_update_entity_returns_updated_fields(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         stored_entity = Entity(
-            campaign_id=test_campaign.id,
+            campaign_id=stored_campaign.id,
             type="person",
             name="Magistrate Ilya",
             summary="Before update",
@@ -209,7 +232,7 @@ def test_update_entity_returns_updated_fields(
 
     response = api_request(
         "PATCH",
-        f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
+        f"/api/campaigns/{stored_campaign.id}/entities/{stored_entity_id}",
         json={
             "type": "organization",
             "name": "Ilya",
@@ -228,11 +251,13 @@ def test_update_entity_returns_updated_fields(
 def test_delete_entity_removes_entity(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         stored_entity = Entity(
-            campaign_id=test_campaign.id,
+            campaign_id=stored_campaign.id,
             type="person",
             name="Magistrate Ilya",
         )
@@ -243,13 +268,13 @@ def test_delete_entity_removes_entity(
 
     delete_response = api_request(
         "DELETE",
-        f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
+        f"/api/campaigns/{stored_campaign.id}/entities/{stored_entity_id}",
     )
     assert delete_response.status_code == 204
 
     missing_response = api_request(
         "GET",
-        f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
+        f"/api/campaigns/{stored_campaign.id}/entities/{stored_entity_id}",
     )
     assert missing_response.status_code == 404
 
@@ -257,16 +282,22 @@ def test_delete_entity_removes_entity(
 def test_get_entity_returns_not_found_for_campaign_mismatch(
     api_request,
     db_session_factory,
-    test_owner,
-    test_campaign: Campaign,
+    owner_factory,
+    campaign_factory,
 ) -> None:
+    owner = owner_factory()
+    stored_campaign = campaign_factory(owner=owner)
+
     with db_session_factory() as db_session:
-        second_campaign = Campaign(owner_id=test_owner.id, name="Second Campaign")
-        db_session.add(second_campaign)
-        db_session.flush()
+        second_campaign = campaign_factory(
+            db_session=db_session,
+            owner_id=owner.id,
+            owner=owner,
+            name="Second Campaign",
+        )
 
         stored_entity = Entity(
-            campaign_id=test_campaign.id,
+            campaign_id=stored_campaign.id,
             type="person",
             name="Magistrate Ilya",
         )
@@ -288,11 +319,13 @@ def test_get_entity_returns_not_found_for_campaign_mismatch(
 def test_update_entity_returns_422_for_null_name(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    stored_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         stored_entity = Entity(
-            campaign_id=test_campaign.id,
+            campaign_id=stored_campaign.id,
             type="person",
             name="Magistrate Ilya",
         )
@@ -303,7 +336,7 @@ def test_update_entity_returns_422_for_null_name(
 
     response = api_request(
         "PATCH",
-        f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
+        f"/api/campaigns/{stored_campaign.id}/entities/{stored_entity_id}",
         json={
             "name": None,
             "summary": "Updated",

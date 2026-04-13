@@ -1,24 +1,16 @@
 from __future__ import annotations
 
-from app.models.campaign import Campaign
-from app.models.entity import Entity
-
 
 def test_entity_type_compatibility_report_groups_legacy_types(
     api_request,
-    db_session_factory,
-    test_campaign: Campaign,
+    entity_factory,
+    campaign_factory,
 ) -> None:
-    with db_session_factory() as db_session:
-        db_session.add_all(
-            [
-                Entity(campaign_id=test_campaign.id, type="npc", name="Rowan"),
-                Entity(campaign_id=test_campaign.id, type="npc", name="Mira"),
-                Entity(campaign_id=test_campaign.id, type="faction", name="Night Choir"),
-                Entity(campaign_id=test_campaign.id, type="location", name="Blackharbor"),
-            ]
-        )
-        db_session.commit()
+    stored_campaign = campaign_factory(name="Shadows of Glass")
+    entity_factory(campaign_id=stored_campaign.id, type="npc", name="Rowan")
+    entity_factory(campaign_id=stored_campaign.id, type="npc", name="Mira")
+    entity_factory(campaign_id=stored_campaign.id, type="faction", name="Night Choir")
+    entity_factory(campaign_id=stored_campaign.id, type="location", name="Blackharbor")
 
     response = api_request("GET", "/api/compatibility/entity-types")
 
@@ -51,18 +43,13 @@ def test_entity_type_compatibility_report_groups_legacy_types(
 
 def test_entity_type_compatibility_report_merges_case_and_whitespace_variants(
     api_request,
-    db_session_factory,
-    test_campaign: Campaign,
+    entity_factory,
+    campaign_factory,
 ) -> None:
-    with db_session_factory() as db_session:
-        db_session.add_all(
-            [
-                Entity(campaign_id=test_campaign.id, type="NPC", name="Rowan"),
-                Entity(campaign_id=test_campaign.id, type=" npc ", name="Mira"),
-                Entity(campaign_id=test_campaign.id, type="person", name="Ilya"),
-            ]
-        )
-        db_session.commit()
+    stored_campaign = campaign_factory()
+    entity_factory(campaign_id=stored_campaign.id, type="NPC", name="Rowan")
+    entity_factory(campaign_id=stored_campaign.id, type=" npc ", name="Mira")
+    entity_factory(campaign_id=stored_campaign.id, type="person", name="Ilya")
 
     response = api_request("GET", "/api/compatibility/entity-types")
 
@@ -83,12 +70,11 @@ def test_entity_type_compatibility_report_merges_case_and_whitespace_variants(
 
 def test_entity_type_compatibility_report_returns_clean_state_when_no_issues(
     api_request,
-    db_session_factory,
-    test_campaign: Campaign,
+    entity_factory,
+    campaign_factory,
 ) -> None:
-    with db_session_factory() as db_session:
-        db_session.add(Entity(campaign_id=test_campaign.id, type="person", name="Rowan"))
-        db_session.commit()
+    stored_campaign = campaign_factory()
+    entity_factory(campaign_id=stored_campaign.id, type="person", name="Rowan")
 
     response = api_request("GET", "/api/compatibility/entity-types")
 
@@ -98,17 +84,12 @@ def test_entity_type_compatibility_report_returns_clean_state_when_no_issues(
 
 def test_entity_type_compatibility_migration_applies_explicit_mapping(
     api_request,
-    db_session_factory,
-    test_campaign: Campaign,
+    entity_factory,
+    campaign_factory,
 ) -> None:
-    with db_session_factory() as db_session:
-        db_session.add_all(
-            [
-                Entity(campaign_id=test_campaign.id, type="npc", name="Rowan"),
-                Entity(campaign_id=test_campaign.id, type="faction", name="Night Choir"),
-            ]
-        )
-        db_session.commit()
+    stored_campaign = campaign_factory()
+    entity_factory(campaign_id=stored_campaign.id, type="npc", name="Rowan")
+    entity_factory(campaign_id=stored_campaign.id, type="faction", name="Night Choir")
 
     response = api_request(
         "POST",
@@ -137,17 +118,12 @@ def test_entity_type_compatibility_migration_applies_explicit_mapping(
 
 def test_entity_type_compatibility_migration_rejects_missing_legacy_mapping(
     api_request,
-    db_session_factory,
-    test_campaign: Campaign,
+    entity_factory,
+    campaign_factory,
 ) -> None:
-    with db_session_factory() as db_session:
-        db_session.add_all(
-            [
-                Entity(campaign_id=test_campaign.id, type="npc", name="Rowan"),
-                Entity(campaign_id=test_campaign.id, type="faction", name="Night Choir"),
-            ]
-        )
-        db_session.commit()
+    stored_campaign = campaign_factory()
+    entity_factory(campaign_id=stored_campaign.id, type="npc", name="Rowan")
+    entity_factory(campaign_id=stored_campaign.id, type="faction", name="Night Choir")
 
     response = api_request(
         "POST",
@@ -161,17 +137,12 @@ def test_entity_type_compatibility_migration_rejects_missing_legacy_mapping(
 
 def test_entity_type_compatibility_migration_applies_mapping_to_all_normalized_variants(
     api_request,
-    db_session_factory,
-    test_campaign: Campaign,
+    entity_factory,
+    campaign_factory,
 ) -> None:
-    with db_session_factory() as db_session:
-        db_session.add_all(
-            [
-                Entity(campaign_id=test_campaign.id, type="NPC", name="Rowan"),
-                Entity(campaign_id=test_campaign.id, type=" npc ", name="Mira"),
-            ]
-        )
-        db_session.commit()
+    stored_campaign = campaign_factory()
+    entity_factory(campaign_id=stored_campaign.id, type="NPC", name="Rowan")
+    entity_factory(campaign_id=stored_campaign.id, type=" npc ", name="Mira")
 
     response = api_request(
         "POST",

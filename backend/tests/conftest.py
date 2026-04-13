@@ -20,8 +20,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.api.dependencies import get_db_session
 from app.config import Settings
 from app.models import Base
-from app.models.campaign import Campaign
-from app.models.owner import Owner
+from tests.factories import CampaignFactory, EntityFactory, OwnerFactory, RelationshipFactory
 from tests.pg_test_support import (
     PostgresTestContainer,
     ensure_postgres_test_container,
@@ -118,32 +117,86 @@ def db_session_factory(sqlite_engine: Engine):
 
 
 @pytest.fixture
-def test_owner(db_session_factory) -> Owner:
-    with db_session_factory() as db_session:
-        stored_owner = Owner(
-            email="gm@example.com",
-            display_name="Local GM",
-        )
-        db_session.add(stored_owner)
-        db_session.commit()
-        db_session.refresh(stored_owner)
-        db_session.expunge(stored_owner)
-        return stored_owner
+def owner_factory(db_session_factory):
+    def create_owner(**kwargs):
+        existing_session = kwargs.pop("db_session", None)
+        if existing_session is not None:
+            return OwnerFactory.create_in_session(existing_session, **kwargs)
+
+        with db_session_factory() as db_session:
+            stored_owner = OwnerFactory.create_in_session(db_session, **kwargs)
+            db_session.commit()
+            db_session.refresh(stored_owner)
+            db_session.expunge(stored_owner)
+            return stored_owner
+
+    return create_owner
 
 
 @pytest.fixture
-def test_campaign(db_session_factory, test_owner: Owner) -> Campaign:
-    with db_session_factory() as db_session:
-        stored_campaign = Campaign(
-            owner_id=test_owner.id,
-            name="Shadows of Glass",
-            description="Urban intrigue campaign",
-        )
-        db_session.add(stored_campaign)
-        db_session.commit()
-        db_session.refresh(stored_campaign)
-        db_session.expunge(stored_campaign)
-        return stored_campaign
+def campaign_factory(db_session_factory):
+    def create_campaign(**kwargs):
+        existing_session = kwargs.pop("db_session", None)
+        if existing_session is not None:
+            return CampaignFactory.create_in_session(existing_session, **kwargs)
+
+        with db_session_factory() as db_session:
+            stored_campaign = CampaignFactory.create_in_session(db_session, **kwargs)
+            db_session.commit()
+            db_session.refresh(stored_campaign)
+            db_session.expunge(stored_campaign)
+            return stored_campaign
+
+    return create_campaign
+
+
+@pytest.fixture
+def entity_factory(db_session_factory):
+    def create_entity(**kwargs):
+        campaign = kwargs.get("campaign")
+        if campaign is not None and "campaign_id" not in kwargs:
+            kwargs["campaign_id"] = campaign.id
+
+        existing_session = kwargs.pop("db_session", None)
+        if existing_session is not None:
+            return EntityFactory.create_in_session(existing_session, **kwargs)
+
+        with db_session_factory() as db_session:
+            stored_entity = EntityFactory.create_in_session(db_session, **kwargs)
+            db_session.commit()
+            db_session.refresh(stored_entity)
+            db_session.expunge(stored_entity)
+            return stored_entity
+
+    return create_entity
+
+
+@pytest.fixture
+def relationship_factory(db_session_factory):
+    def create_relationship(**kwargs):
+        campaign = kwargs.get("campaign")
+        source_entity = kwargs.get("source_entity")
+        target_entity = kwargs.get("target_entity")
+
+        if campaign is not None and "campaign_id" not in kwargs:
+            kwargs["campaign_id"] = campaign.id
+        if source_entity is not None and "source_entity_id" not in kwargs:
+            kwargs["source_entity_id"] = source_entity.id
+        if target_entity is not None and "target_entity_id" not in kwargs:
+            kwargs["target_entity_id"] = target_entity.id
+
+        existing_session = kwargs.pop("db_session", None)
+        if existing_session is not None:
+            return RelationshipFactory.create_in_session(existing_session, **kwargs)
+
+        with db_session_factory() as db_session:
+            stored_relationship = RelationshipFactory.create_in_session(db_session, **kwargs)
+            db_session.commit()
+            db_session.refresh(stored_relationship)
+            db_session.expunge(stored_relationship)
+            return stored_relationship
+
+    return create_relationship
 
 
 @pytest.fixture
@@ -166,19 +219,6 @@ def test_app(sqlite_engine: Engine, monkeypatch: pytest.MonkeyPatch):
         yield app
     finally:
         app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def api_client_factory(test_app, sync_api_test_runtime_shim):
-    def create_api_client() -> httpx.AsyncClient:
-        transport = httpx.ASGITransport(app=test_app)
-        return httpx.AsyncClient(
-            transport=transport,
-            base_url="http://testserver",
-            timeout=5.0,
-        )
-
-    return create_api_client
 
 
 @pytest.fixture

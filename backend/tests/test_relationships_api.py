@@ -3,7 +3,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app import services
-from app.models.campaign import Campaign
 from app.models.entity import Entity
 from app.models.relationship import Relationship
 from app.models.relationship_type_definition import RelationshipTypeDefinition
@@ -12,8 +11,10 @@ from app.models.relationship_type_definition import RelationshipTypeDefinition
 def test_list_relationship_types_includes_built_in_and_custom_types(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         db_session.add(
             RelationshipTypeDefinition(
@@ -61,8 +62,10 @@ def test_list_relationship_families_returns_backend_canonical_family_metadata(
 
 def test_create_custom_relationship_type_returns_created_record(
     api_request,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     response = api_request(
         "POST",
         f"/api/campaigns/{test_campaign.id}/relationship-types",
@@ -87,8 +90,10 @@ def test_create_custom_relationship_type_returns_created_record(
 def test_update_custom_relationship_type_rejects_semantic_changes_when_type_is_in_use(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         entity_a = Entity(campaign_id=test_campaign.id, type="person", name="Martha")
         entity_b = Entity(campaign_id=test_campaign.id, type="person", name="Rick")
@@ -133,8 +138,10 @@ def test_update_custom_relationship_type_rejects_semantic_changes_when_type_is_i
 def test_update_custom_relationship_type_rejects_payload_with_symmetric_and_reverse_label(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         db_session.add(
             RelationshipTypeDefinition(
@@ -163,8 +170,10 @@ def test_update_custom_relationship_type_rejects_payload_with_symmetric_and_reve
 def test_update_custom_relationship_type_rejects_reverse_label_for_existing_symmetric_type(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         db_session.add(
             RelationshipTypeDefinition(
@@ -196,8 +205,10 @@ def test_update_custom_relationship_type_rejects_reverse_label_for_existing_symm
 def test_delete_custom_relationship_type_rejects_used_type(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         entity_a = Entity(campaign_id=test_campaign.id, type="person", name="Martha")
         entity_b = Entity(campaign_id=test_campaign.id, type="person", name="Rick")
@@ -241,8 +252,10 @@ def test_delete_custom_relationship_type_rejects_used_type(
 def test_create_relationship_returns_created_record_with_catalog_metadata(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
@@ -277,8 +290,10 @@ def test_create_relationship_returns_created_record_with_catalog_metadata(
 def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_custom_type(
     db_session_factory,
     monkeypatch,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
@@ -352,13 +367,19 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
 def test_create_relationship_rejects_cross_campaign_target_entity(
     api_request,
     db_session_factory,
-    test_owner,
-    test_campaign: Campaign,
+    owner_factory,
+    campaign_factory,
 ) -> None:
+    test_owner = owner_factory()
+    test_campaign = campaign_factory(owner=test_owner)
+
     with db_session_factory() as db_session:
-        second_campaign = Campaign(owner_id=test_owner.id, name="Second Campaign")
-        db_session.add(second_campaign)
-        db_session.flush()
+        second_campaign = campaign_factory(
+            db_session=db_session,
+            owner=test_owner,
+            owner_id=test_owner.id,
+            name="Second Campaign",
+        )
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         foreign_target_entity = Entity(campaign_id=second_campaign.id, type="person", name="Civu")
         db_session.add_all([source_entity, foreign_target_entity])
@@ -386,8 +407,10 @@ def test_create_relationship_rejects_cross_campaign_target_entity(
 def test_create_relationship_rejects_invalid_type_pair(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="organization", name="The Choir")
         target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
@@ -419,8 +442,10 @@ def test_create_relationship_rejects_invalid_type_pair(
 def test_create_relationship_rejects_inverse_duplicate_for_symmetric_type(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         first_entity = Entity(campaign_id=test_campaign.id, type="person", name="Jo")
         second_entity = Entity(campaign_id=test_campaign.id, type="person", name="Mika")
@@ -463,8 +488,10 @@ def test_create_relationship_rejects_inverse_duplicate_for_symmetric_type(
 def test_list_relationships_supports_type_and_family_filters(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         tarannon = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         civu = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
@@ -510,8 +537,10 @@ def test_list_relationships_supports_type_and_family_filters(
 def test_list_relationships_supports_family_only_filter(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         tarannon = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         civu = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
@@ -557,8 +586,10 @@ def test_list_relationships_supports_family_only_filter(
 def test_list_relationships_rejects_mismatched_type_and_family_filters(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
@@ -592,8 +623,10 @@ def test_list_relationships_rejects_mismatched_type_and_family_filters(
 def test_get_relationship_returns_stored_record(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
@@ -627,8 +660,10 @@ def test_get_relationship_returns_stored_record(
 def test_update_relationship_returns_updated_fields(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
@@ -670,8 +705,10 @@ def test_update_relationship_returns_updated_fields(
 def test_delete_relationship_removes_relationship(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
         target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
@@ -708,8 +745,10 @@ def test_delete_relationship_removes_relationship(
 def test_update_relationship_rejects_invalid_type_pair(
     api_request,
     db_session_factory,
-    test_campaign: Campaign,
+    campaign_factory,
 ) -> None:
+    test_campaign = campaign_factory()
+
     with db_session_factory() as db_session:
         source_entity = Entity(campaign_id=test_campaign.id, type="organization", name="The Choir")
         target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")

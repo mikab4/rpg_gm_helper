@@ -5,12 +5,17 @@ from app.models.owner import Owner
 
 def test_get_default_owner_returns_existing_owner(
     api_request,
-    test_owner: Owner,
+    owner_factory,
 ) -> None:
+    existing_owner = owner_factory(
+        email="gm@example.com",
+        display_name="Local GM",
+    )
+
     response = api_request("GET", "/api/owners/default")
 
     assert response.status_code == 200
-    assert response.json()["id"] == str(test_owner.id)
+    assert response.json()["id"] == str(existing_owner.id)
     assert response.json()["email"] == "gm@example.com"
     assert response.json()["display_name"] == "Local GM"
 
