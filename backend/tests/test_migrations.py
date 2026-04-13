@@ -1,27 +1,23 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 import pytest
 from sqlalchemy import inspect
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alembic import command
-from app.config import get_settings
-from app.models import (
-    Campaign,
-    Entity,
-    ExtractionCandidate,
-    ExtractionJob,
-    Owner,
-    Relationship,
-)
+from app.config import Settings, get_settings
+from app.models import Campaign, Entity, ExtractionCandidate, ExtractionJob, Owner, Relationship
 from app.models.relationship_type_definition import RelationshipTypeDefinition
 from app.models.session_note import SessionNote
 from app.models.source_document import SourceDocument
 from tests.pg_test_support import (
     build_alembic_config,
     create_test_engine,
-    load_test_settings,
     reset_public_schema,
 )
 
@@ -39,14 +35,15 @@ EXPECTED_TABLES = {
 }
 
 
-def test_alembic_upgrade_head_creates_expected_tables(
+@contextmanager
+def upgraded_engine(
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    settings = load_test_settings()
+    postgres_test_settings: Settings,
+) -> Iterator[Engine]:
+    settings = postgres_test_settings
     engine = create_test_engine(settings)
 
     reset_public_schema(engine)
-
     monkeypatch.setenv("DATABASE_URL", settings.database_url)
     get_settings.cache_clear()
 
@@ -56,15 +53,7 @@ def test_alembic_upgrade_head_creates_expected_tables(
     try:
         command.upgrade(alembic_config, "head")
         upgraded = True
-
-        inspector = inspect(engine)
-        assert EXPECTED_TABLES.issubset(set(inspector.get_table_names()))
-        relationship_columns = {
-            column["name"] for column in inspector.get_columns("entity_relationships")
-        }
-        assert {"lifecycle_status", "visibility_status", "certainty_status"}.issubset(
-            relationship_columns
-        )
+        yield engine
     finally:
         if upgraded:
             command.downgrade(alembic_config, "base")
@@ -72,44 +61,34 @@ def test_alembic_upgrade_head_creates_expected_tables(
         engine.dispose()
 
 
-def test_alembic_migration_rejects_cross_campaign_references(
+def test_alembic_upgrade_head_creates_expected_tables(
     monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
 ) -> None:
-    settings = load_test_settings()
-    engine = create_test_engine(settings)
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+        inspector = inspect(engine)
+        relationship_columns = {
+            column["name"] for column in inspector.get_columns("entity_relationships")
+        }
 
-    reset_public_schema(engine)
+        assert EXPECTED_TABLES.issubset(set(inspector.get_table_names()))
+        assert {"lifecycle_status", "visibility_status", "certainty_status"}.issubset(
+            relationship_columns
+        )
 
-    monkeypatch.setenv("DATABASE_URL", settings.database_url)
-    get_settings.cache_clear()
 
-    alembic_config = build_alembic_config()
-    upgraded = False
-
-    try:
-        command.upgrade(alembic_config, "head")
-        upgraded = True
-
+def test_source_document_rejects_session_note_from_another_campaign(
+    monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
+) -> None:
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign_a = Campaign(owner=owner, name="Campaign A")
             campaign_b = Campaign(owner=owner, name="Campaign B")
             note_b = SessionNote(campaign=campaign_b, session_number=1)
-            document_b = SourceDocument(
-                campaign=campaign_b,
-                session_note=note_b,
-                truth_status="canonical",
-                raw_text="Document in campaign B",
-            )
-            job_b = ExtractionJob(
-                campaign=campaign_b,
-                source_document=document_b,
-                status="completed",
-                extractor_kind="rules",
-            )
-            entity_b = Entity(campaign=campaign_b, type="npc", name="Entity B")
 
-            session.add_all([owner, campaign_a, campaign_b, note_b, document_b, job_b, entity_b])
+            session.add_all([owner, campaign_a, campaign_b, note_b])
             session.commit()
 
             invalid_document = SourceDocument(
@@ -119,16 +98,34 @@ def test_alembic_migration_rejects_cross_campaign_references(
                 raw_text="Claims campaign A while pointing at campaign B note",
             )
             session.add(invalid_document)
+
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
 
-            valid_document_a = SourceDocument(
+
+def test_extraction_job_rejects_source_document_from_another_campaign(
+    monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
+) -> None:
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+        with Session(engine) as session:
+            owner = Owner(email="gm@example.com")
+            campaign_a = Campaign(owner=owner, name="Campaign A")
+            campaign_b = Campaign(owner=owner, name="Campaign B")
+            document_a = SourceDocument(
                 campaign=campaign_a,
                 truth_status="canonical",
                 raw_text="Document in campaign A",
             )
-            session.add(valid_document_a)
+            document_b = SourceDocument(
+                campaign=campaign_b,
+                truth_status="canonical",
+                raw_text="Document in campaign B",
+            )
+
+            session.add_all([owner, campaign_a, campaign_b, document_a, document_b])
             session.commit()
 
             invalid_job = ExtractionJob(
@@ -138,17 +135,40 @@ def test_alembic_migration_rejects_cross_campaign_references(
                 extractor_kind="rules",
             )
             session.add(invalid_job)
+
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
 
-            job_a = ExtractionJob(
+
+def test_extraction_candidate_rejects_job_from_another_campaign(
+    monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
+) -> None:
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+        with Session(engine) as session:
+            owner = Owner(email="gm@example.com")
+            campaign_a = Campaign(owner=owner, name="Campaign A")
+            campaign_b = Campaign(owner=owner, name="Campaign B")
+            document_a = SourceDocument(
                 campaign=campaign_a,
-                source_document=valid_document_a,
-                status="pending",
+                truth_status="canonical",
+                raw_text="Document in campaign A",
+            )
+            document_b = SourceDocument(
+                campaign=campaign_b,
+                truth_status="canonical",
+                raw_text="Document in campaign B",
+            )
+            job_b = ExtractionJob(
+                campaign=campaign_b,
+                source_document=document_b,
+                status="completed",
                 extractor_kind="rules",
             )
-            session.add(job_a)
+
+            session.add_all([owner, campaign_a, campaign_b, document_a, document_b, job_b])
             session.commit()
 
             invalid_candidate = ExtractionCandidate(
@@ -159,49 +179,47 @@ def test_alembic_migration_rejects_cross_campaign_references(
                 status="pending",
             )
             session.add(invalid_candidate)
+
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
 
-            entity_a = Entity(campaign=campaign_a, type="npc", name="Entity A")
-            session.add(entity_a)
+
+def test_relationship_rejects_target_entity_from_another_campaign(
+    monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
+) -> None:
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+        with Session(engine) as session:
+            owner = Owner(email="gm@example.com")
+            campaign_a = Campaign(owner=owner, name="Campaign A")
+            campaign_b = Campaign(owner=owner, name="Campaign B")
+            source_entity = Entity(campaign=campaign_a, type="npc", name="Entity A")
+            foreign_target_entity = Entity(campaign=campaign_b, type="npc", name="Entity B")
+
+            session.add_all([owner, campaign_a, campaign_b, source_entity, foreign_target_entity])
             session.commit()
 
             invalid_relationship = Relationship(
                 campaign=campaign_a,
-                source_entity=entity_a,
-                target_entity_id=entity_b.id,
+                source_entity=source_entity,
+                target_entity_id=foreign_target_entity.id,
                 relationship_type="knows",
             )
             session.add(invalid_relationship)
+
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
-    finally:
-        if upgraded:
-            command.downgrade(alembic_config, "base")
-        get_settings.cache_clear()
-        engine.dispose()
 
 
 def test_alembic_migration_rejects_invalid_relationship_type_direction_labels(
     monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
 ) -> None:
-    settings = load_test_settings()
-    engine = create_test_engine(settings)
-
-    reset_public_schema(engine)
-
-    monkeypatch.setenv("DATABASE_URL", settings.database_url)
-    get_settings.cache_clear()
-
-    alembic_config = build_alembic_config()
-    upgraded = False
-
-    try:
-        command.upgrade(alembic_config, "head")
-        upgraded = True
-
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign = Campaign(owner=owner, name="Campaign A")
@@ -222,32 +240,15 @@ def test_alembic_migration_rejects_invalid_relationship_type_direction_labels(
 
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
-    finally:
-        if upgraded:
-            command.downgrade(alembic_config, "base")
-        get_settings.cache_clear()
-        engine.dispose()
 
 
-def test_alembic_migration_restricts_deleting_optional_referenced_parents(
+def test_session_note_delete_is_restricted_when_source_document_references_it(
     monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
 ) -> None:
-    settings = load_test_settings()
-    engine = create_test_engine(settings)
-
-    reset_public_schema(engine)
-
-    monkeypatch.setenv("DATABASE_URL", settings.database_url)
-    get_settings.cache_clear()
-
-    alembic_config = build_alembic_config()
-    upgraded = False
-
-    try:
-        command.upgrade(alembic_config, "head")
-        upgraded = True
-
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign = Campaign(owner=owner, name="Campaign A")
@@ -276,16 +277,48 @@ def test_alembic_migration_restricts_deleting_optional_referenced_parents(
             session.commit()
 
             session.delete(note)
+
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
 
+
+def test_source_document_delete_is_restricted_when_records_reference_it(
+    monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
+) -> None:
+    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+        with Session(engine) as session:
+            owner = Owner(email="gm@example.com")
+            campaign = Campaign(owner=owner, name="Campaign A")
+            note = SessionNote(campaign=campaign, session_number=1)
+            document = SourceDocument(
+                campaign=campaign,
+                session_note=note,
+                truth_status="canonical",
+                raw_text="Document linked to a session",
+            )
+            entity = Entity(
+                campaign=campaign,
+                type="npc",
+                name="Entity A",
+                source_document=document,
+            )
+            relationship = Relationship(
+                campaign=campaign,
+                source_entity=entity,
+                target_entity=entity,
+                relationship_type="self_ref",
+                source_document=document,
+            )
+
+            session.add_all([owner, campaign, note, document, entity, relationship])
+            session.commit()
+
             session.delete(document)
+
             with pytest.raises(IntegrityError):
                 session.commit()
+
             session.rollback()
-    finally:
-        if upgraded:
-            command.downgrade(alembic_config, "base")
-        get_settings.cache_clear()
-        engine.dispose()

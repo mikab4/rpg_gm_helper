@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alembic import command
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.models import (
     Campaign,
     Entity,
@@ -24,7 +24,6 @@ from app.models.relationship_type_definition import RelationshipTypeDefinition
 from tests.pg_test_support import (
     build_alembic_config,
     create_test_engine,
-    load_test_settings,
     reset_public_schema,
 )
 
@@ -44,8 +43,11 @@ def test_relationship_type_definition_declares_direction_check_constraint() -> N
 
 
 @pytest.fixture
-def session(monkeypatch: pytest.MonkeyPatch) -> Session:
-    settings = load_test_settings()
+def session(
+    monkeypatch: pytest.MonkeyPatch,
+    postgres_test_settings: Settings,
+) -> Session:
+    settings = postgres_test_settings
     engine = create_test_engine(settings)
     alembic_config = build_alembic_config()
 
@@ -64,6 +66,7 @@ def session(monkeypatch: pytest.MonkeyPatch) -> Session:
 
 
 def test_can_persist_and_retrieve_core_records(session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com", display_name="Local GM")
     campaign = Campaign(owner=owner, name="Shadows of Glass", description="Urban intrigue")
     session_note = SessionNote(
@@ -138,6 +141,8 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
             relationship,
         ]
     )
+
+    # Act
     session.commit()
 
     stored_campaign = session.get(Campaign, campaign.id)
@@ -147,6 +152,7 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
     stored_candidate = session.get(ExtractionCandidate, candidate.id)
     stored_relationship = session.get(Relationship, relationship.id)
 
+    # Assert
     assert stored_campaign is not None
     assert stored_campaign.owner_id == owner.id
     assert stored_note is not None
@@ -166,6 +172,7 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
 
 
 def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
     source_document = SourceDocument(
@@ -222,6 +229,8 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
             relationship,
         ]
     )
+
+    # Act
     session.commit()
 
     stored_document = session.get(SourceDocument, source_document.id)
@@ -233,6 +242,7 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
         relationship_type_definition.id,
     )
 
+    # Assert
     assert stored_document is not None
     assert stored_document.metadata_ == {}
     assert stored_candidate is not None
@@ -295,7 +305,7 @@ def test_updated_at_changes_on_orm_update(session: Session) -> None:
     assert source_document.updated_at > original_updated_at
 
 
-def test_relationship_confidence_must_be_between_zero_and_one(session: Session) -> None:
+def test_relationship_rejects_confidence_below_zero(session: Session) -> None:
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
     entity_a = Entity(campaign=campaign, type="person", name="Magistrate Ilya")
@@ -316,6 +326,16 @@ def test_relationship_confidence_must_be_between_zero_and_one(session: Session) 
     with pytest.raises(IntegrityError):
         session.commit()
     session.rollback()
+
+
+def test_relationship_rejects_confidence_above_one(session: Session) -> None:
+    owner = Owner(email="gm@example.com")
+    campaign = Campaign(owner=owner, name="Shadows of Glass")
+    entity_a = Entity(campaign=campaign, type="person", name="Magistrate Ilya")
+    entity_b = Entity(campaign=campaign, type="location", name="Broken Observatory")
+
+    session.add_all([owner, campaign, entity_a, entity_b])
+    session.commit()
 
     session.add(
         Relationship(

@@ -18,9 +18,16 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.dependencies import get_db_session
+from app.config import Settings
 from app.models import Base
 from app.models.campaign import Campaign
 from app.models.owner import Owner
+from tests.pg_test_support import (
+    PostgresTestContainer,
+    ensure_postgres_test_container,
+    load_test_settings,
+    remove_postgres_test_container,
+)
 
 
 @pytest.fixture
@@ -189,3 +196,18 @@ def api_request(test_app, sync_api_test_runtime_shim):
         return asyncio.run(send_request())
 
     return issue_api_request
+
+
+@pytest.fixture(scope="session")
+def postgres_test_container() -> Iterator[PostgresTestContainer]:
+    runtime_container = ensure_postgres_test_container()
+
+    try:
+        yield runtime_container
+    finally:
+        remove_postgres_test_container(runtime_container.container_name)
+
+
+@pytest.fixture(scope="session")
+def postgres_test_settings(postgres_test_container: PostgresTestContainer) -> Settings:
+    return load_test_settings(runtime_database_url=postgres_test_container.database_url)

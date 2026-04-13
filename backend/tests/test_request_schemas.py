@@ -40,29 +40,22 @@ def test_entity_create_forbids_unknown_fields() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    ("campaign_name", "entity_type", "entity_name"),
-    [
-        ("", "person", "Magistrate Ilya"),
-        ("   ", "person", "Magistrate Ilya"),
-        ("Iron Vale", "", "Magistrate Ilya"),
-        ("Iron Vale", "   ", "Magistrate Ilya"),
-        ("Iron Vale", "person", ""),
-        ("Iron Vale", "person", "   "),
-    ],
-)
-def test_required_business_strings_reject_blank_values(
-    campaign_name: str,
-    entity_type: str,
-    entity_name: str,
-) -> None:
-    if campaign_name != "Iron Vale":
-        with pytest.raises(ValidationError):
-            CampaignCreate(owner_id=uuid4(), name=campaign_name)
+@pytest.mark.parametrize("blank_campaign_name", ["", "   "])
+def test_campaign_create_rejects_blank_name(blank_campaign_name: str) -> None:
+    with pytest.raises(ValidationError):
+        CampaignCreate(owner_id=uuid4(), name=blank_campaign_name)
 
-    if entity_type != "person" or entity_name != "Magistrate Ilya":
-        with pytest.raises(ValidationError):
-            EntityCreate(type=entity_type, name=entity_name)
+
+@pytest.mark.parametrize("blank_entity_type", ["", "   "])
+def test_entity_create_rejects_blank_type(blank_entity_type: str) -> None:
+    with pytest.raises(ValidationError):
+        EntityCreate(type=blank_entity_type, name="Magistrate Ilya")
+
+
+@pytest.mark.parametrize("blank_entity_name", ["", "   "])
+def test_entity_create_rejects_blank_name(blank_entity_name: str) -> None:
+    with pytest.raises(ValidationError):
+        EntityCreate(type="person", name=blank_entity_name)
 
 
 def test_request_models_trim_non_blank_strings() -> None:
@@ -110,26 +103,36 @@ def test_relationship_request_models_use_str_enums() -> None:
     assert relationship_create.certainty_status is RelationshipCertaintyStatus.RUMORED
 
 
-def test_optional_free_text_fields_reject_blank_strings() -> None:
+@pytest.mark.parametrize("blank_description", ["   "])
+def test_campaign_create_rejects_blank_description(blank_description: str) -> None:
     with pytest.raises(ValidationError):
         CampaignCreate(
             owner_id=uuid4(),
             name="Iron Vale",
-            description="   ",
+            description=blank_description,
         )
 
-    with pytest.raises(ValidationError):
-        CampaignUpdate(description="   ")
 
+@pytest.mark.parametrize("blank_description", ["   "])
+def test_campaign_update_rejects_blank_description(blank_description: str) -> None:
+    with pytest.raises(ValidationError):
+        CampaignUpdate(description=blank_description)
+
+
+@pytest.mark.parametrize("blank_summary", ["   "])
+def test_entity_create_rejects_blank_summary(blank_summary: str) -> None:
     with pytest.raises(ValidationError):
         EntityCreate(
             type="person",
             name="Magistrate Ilya",
-            summary="   ",
+            summary=blank_summary,
         )
 
+
+@pytest.mark.parametrize("blank_summary", ["   "])
+def test_entity_update_rejects_blank_summary(blank_summary: str) -> None:
     with pytest.raises(ValidationError):
-        EntityUpdate(summary="   ")
+        EntityUpdate(summary=blank_summary)
 
 
 def test_optional_free_text_update_fields_allow_null_to_clear() -> None:
@@ -140,13 +143,17 @@ def test_optional_free_text_update_fields_allow_null_to_clear() -> None:
     assert entity_update.summary is None
 
 
-def test_update_models_reject_null_for_non_nullable_identifiers() -> None:
+def test_campaign_update_rejects_null_name() -> None:
     with pytest.raises(ValidationError):
         CampaignUpdate(name=None, description="Updated")
 
+
+def test_entity_update_rejects_null_name() -> None:
     with pytest.raises(ValidationError):
         EntityUpdate(name=None, summary="Updated")
 
+
+def test_entity_update_rejects_null_type() -> None:
     with pytest.raises(ValidationError):
         EntityUpdate(type=None, summary="Updated")
 
@@ -156,10 +163,12 @@ def test_entity_update_rejects_null_metadata() -> None:
         EntityUpdate(metadata=None, summary="Updated")
 
 
-def test_update_models_reject_empty_payloads() -> None:
+def test_campaign_update_rejects_empty_payload() -> None:
     with pytest.raises(ValidationError):
         CampaignUpdate()
 
+
+def test_entity_update_rejects_empty_payload() -> None:
     with pytest.raises(ValidationError):
         EntityUpdate()
 

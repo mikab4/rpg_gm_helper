@@ -37,10 +37,15 @@ def test_list_relationship_types_includes_built_in_and_custom_types(
     )
 
     assert response.status_code == 200
-    listed_type_keys = {listed_type["key"] for listed_type in response.json()}
+    listed_types = response.json()
+    listed_type_keys = {listed_type["key"] for listed_type in listed_types}
+    custom_type_response = next(
+        listed_type for listed_type in listed_types if listed_type["key"] == "bodyguard_of"
+    )
+
     assert "sibling_of" in listed_type_keys
     assert "bodyguard_of" in listed_type_keys
-    assert next(listed_type for listed_type in response.json() if listed_type["key"] == "bodyguard_of")["family_label"] == "Social"
+    assert custom_type_response["family_label"] == "Social"
 
 
 def test_list_relationship_families_returns_backend_canonical_family_metadata(
@@ -584,7 +589,7 @@ def test_list_relationships_rejects_mismatched_type_and_family_filters(
     }
 
 
-def test_get_update_and_delete_relationship_flow(
+def test_get_relationship_returns_stored_record(
     api_request,
     db_session_factory,
     test_campaign: Campaign,
@@ -618,7 +623,33 @@ def test_get_update_and_delete_relationship_flow(
     assert get_response.json()["notes"] == "Original note"
     assert get_response.json()["relationship_family"] == "location"
 
-    update_response = api_request(
+
+def test_update_relationship_returns_updated_fields(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
+        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
+        db_session.add_all([source_entity, target_entity])
+        db_session.flush()
+        stored_relationship = Relationship(
+            campaign_id=test_campaign.id,
+            source_entity=source_entity,
+            target_entity=target_entity,
+            relationship_type="lives_in",
+            lifecycle_status="current",
+            visibility_status="public",
+            certainty_status="confirmed",
+            notes="Original note",
+        )
+        db_session.add(stored_relationship)
+        db_session.commit()
+        db_session.refresh(stored_relationship)
+        stored_relationship_id = stored_relationship.id
+
+    response = api_request(
         "PATCH",
         f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship_id}",
         json={
@@ -629,11 +660,36 @@ def test_get_update_and_delete_relationship_flow(
         },
     )
 
-    assert update_response.status_code == 200
-    assert update_response.json()["lifecycle_status"] == "former"
-    assert update_response.json()["visibility_status"] == "secret"
-    assert update_response.json()["certainty_status"] == "rumored"
-    assert update_response.json()["notes"] == "Updated note"
+    assert response.status_code == 200
+    assert response.json()["lifecycle_status"] == "former"
+    assert response.json()["visibility_status"] == "secret"
+    assert response.json()["certainty_status"] == "rumored"
+    assert response.json()["notes"] == "Updated note"
+
+
+def test_delete_relationship_removes_relationship(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
+        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
+        db_session.add_all([source_entity, target_entity])
+        db_session.flush()
+        stored_relationship = Relationship(
+            campaign_id=test_campaign.id,
+            source_entity=source_entity,
+            target_entity=target_entity,
+            relationship_type="lives_in",
+            lifecycle_status="current",
+            visibility_status="public",
+            certainty_status="confirmed",
+        )
+        db_session.add(stored_relationship)
+        db_session.commit()
+        db_session.refresh(stored_relationship)
+        stored_relationship_id = stored_relationship.id
 
     delete_response = api_request(
         "DELETE",

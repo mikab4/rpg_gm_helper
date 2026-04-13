@@ -60,6 +60,10 @@ Backend:
 - use standard CPython 3.14
 - run `uv sync --group dev` inside `backend/`
 - copy `backend/.env.example` to `backend/.env`
+- install Docker and make sure the Docker daemon is available to your shell
+- `uv run pytest` provisions a disposable Postgres container automatically for the Postgres-backed test modules
+- `backend/.env.test` is not required for normal test runs; keep it only if you want to run those tests against a custom database manually
+- if Docker is installed but unavailable, the Postgres-backed tests fail with an explicit setup error instead of skipping
 - set `AUTO_APPLY_MIGRATIONS=true` in `backend/.env` if you want the API to run `alembic upgrade head` automatically on startup
 - schema migrations can run automatically on startup, but semantic data migrations stay explicit: if the app detects legacy entity types, it now opens a migration screen in the frontend and requires user-selected mappings before continuing
 - run the API with `uv run uvicorn app.main:app --reload` from `backend/`

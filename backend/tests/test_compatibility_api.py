@@ -23,18 +23,27 @@ def test_entity_type_compatibility_report_groups_legacy_types(
     response = api_request("GET", "/api/compatibility/entity-types")
 
     assert response.status_code == 200
-    payload = response.json()
+    compatibility_report = response.json()
 
-    assert payload["has_issues"] is True
-    assert payload["issue_count"] == 2
-    assert [issue["legacy_type"] for issue in payload["issues"]] == ["faction", "npc"]
-    assert payload["issues"][0]["count"] == 1
-    assert payload["issues"][0]["raw_variants"] == ["faction"]
-    assert payload["issues"][0]["example_entities"][0]["entity_name"] == "Night Choir"
-    assert payload["issues"][0]["example_entities"][0]["campaign_name"] == "Shadows of Glass"
-    assert payload["issues"][1]["count"] == 2
-    assert payload["issues"][1]["raw_variants"] == ["npc"]
-    assert [entity["entity_name"] for entity in payload["issues"][1]["example_entities"]] == [
+    assert compatibility_report["has_issues"] is True
+    assert compatibility_report["issue_count"] == 2
+    assert [issue["legacy_type"] for issue in compatibility_report["issues"]] == [
+        "faction",
+        "npc",
+    ]
+    assert compatibility_report["issues"][0]["count"] == 1
+    assert compatibility_report["issues"][0]["raw_variants"] == ["faction"]
+    assert compatibility_report["issues"][0]["example_entities"][0]["entity_name"] == "Night Choir"
+    assert (
+        compatibility_report["issues"][0]["example_entities"][0]["campaign_name"]
+        == "Shadows of Glass"
+    )
+    assert compatibility_report["issues"][1]["count"] == 2
+    assert compatibility_report["issues"][1]["raw_variants"] == ["npc"]
+    assert [
+        entity["entity_name"]
+        for entity in compatibility_report["issues"][1]["example_entities"]
+    ] == [
         "Mira",
         "Rowan",
     ]
@@ -58,15 +67,18 @@ def test_entity_type_compatibility_report_merges_case_and_whitespace_variants(
     response = api_request("GET", "/api/compatibility/entity-types")
 
     assert response.status_code == 200
-    payload = response.json()
+    compatibility_report = response.json()
 
-    assert payload["has_issues"] is True
-    assert payload["issue_count"] == 1
-    assert len(payload["issues"]) == 1
-    assert payload["issues"][0]["legacy_type"] == "npc"
-    assert payload["issues"][0]["raw_variants"] == [" npc ", "NPC"]
-    assert payload["issues"][0]["count"] == 2
-    assert [entity["entity_name"] for entity in payload["issues"][0]["example_entities"]] == ["Mira", "Rowan"]
+    assert compatibility_report["has_issues"] is True
+    assert compatibility_report["issue_count"] == 1
+    assert len(compatibility_report["issues"]) == 1
+    assert compatibility_report["issues"][0]["legacy_type"] == "npc"
+    assert compatibility_report["issues"][0]["raw_variants"] == [" npc ", "NPC"]
+    assert compatibility_report["issues"][0]["count"] == 2
+    assert [
+        entity["entity_name"]
+        for entity in compatibility_report["issues"][0]["example_entities"]
+    ] == ["Mira", "Rowan"]
 
 
 def test_entity_type_compatibility_report_returns_clean_state_when_no_issues(

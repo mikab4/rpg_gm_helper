@@ -107,16 +107,21 @@ def test_list_campaigns_supports_owner_filter(
     assert [listed_campaign["name"] for listed_campaign in response.json()] == ["Iron Vale"]
 
 
-def test_get_update_and_delete_campaign_flow(
+def test_get_campaign_returns_stored_record(
     api_request,
     test_campaign: Campaign,
 ) -> None:
-    get_response = api_request("GET", f"/api/campaigns/{test_campaign.id}")
+    response = api_request("GET", f"/api/campaigns/{test_campaign.id}")
 
-    assert get_response.status_code == 200
-    assert get_response.json()["name"] == "Shadows of Glass"
+    assert response.status_code == 200
+    assert response.json()["name"] == "Shadows of Glass"
 
-    update_response = api_request(
+
+def test_update_campaign_returns_updated_fields(
+    api_request,
+    test_campaign: Campaign,
+) -> None:
+    response = api_request(
         "PATCH",
         f"/api/campaigns/{test_campaign.id}",
         json={
@@ -125,11 +130,17 @@ def test_get_update_and_delete_campaign_flow(
         },
     )
 
-    assert update_response.status_code == 200
-    assert update_response.json()["name"] == "Shadows Revised"
-    assert update_response.json()["description"] == "Updated"
+    assert response.status_code == 200
+    assert response.json()["name"] == "Shadows Revised"
+    assert response.json()["description"] == "Updated"
 
+
+def test_delete_campaign_removes_campaign(
+    api_request,
+    test_campaign: Campaign,
+) -> None:
     delete_response = api_request("DELETE", f"/api/campaigns/{test_campaign.id}")
+
     assert delete_response.status_code == 204
 
     missing_response = api_request("GET", f"/api/campaigns/{test_campaign.id}")

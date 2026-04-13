@@ -164,7 +164,7 @@ def test_list_campaign_entities_supports_type_filter(
     assert [listed_entity["name"] for listed_entity in response.json()] == ["Magistrate Ilya"]
 
 
-def test_get_update_and_delete_entity_flow(
+def test_get_entity_returns_stored_record(
     api_request,
     db_session_factory,
     test_campaign: Campaign,
@@ -189,7 +189,25 @@ def test_get_update_and_delete_entity_flow(
     assert get_response.status_code == 200
     assert get_response.json()["summary"] == "Before update"
 
-    update_response = api_request(
+
+def test_update_entity_returns_updated_fields(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        stored_entity = Entity(
+            campaign_id=test_campaign.id,
+            type="person",
+            name="Magistrate Ilya",
+            summary="Before update",
+        )
+        db_session.add(stored_entity)
+        db_session.commit()
+        db_session.refresh(stored_entity)
+        stored_entity_id = stored_entity.id
+
+    response = api_request(
         "PATCH",
         f"/api/campaigns/{test_campaign.id}/entities/{stored_entity_id}",
         json={
@@ -200,11 +218,28 @@ def test_get_update_and_delete_entity_flow(
         },
     )
 
-    assert update_response.status_code == 200
-    assert update_response.json()["type"] == "organization"
-    assert update_response.json()["name"] == "Ilya"
-    assert update_response.json()["summary"] == "After update"
-    assert update_response.json()["metadata"] == {"rank": "magistrate"}
+    assert response.status_code == 200
+    assert response.json()["type"] == "organization"
+    assert response.json()["name"] == "Ilya"
+    assert response.json()["summary"] == "After update"
+    assert response.json()["metadata"] == {"rank": "magistrate"}
+
+
+def test_delete_entity_removes_entity(
+    api_request,
+    db_session_factory,
+    test_campaign: Campaign,
+) -> None:
+    with db_session_factory() as db_session:
+        stored_entity = Entity(
+            campaign_id=test_campaign.id,
+            type="person",
+            name="Magistrate Ilya",
+        )
+        db_session.add(stored_entity)
+        db_session.commit()
+        db_session.refresh(stored_entity)
+        stored_entity_id = stored_entity.id
 
     delete_response = api_request(
         "DELETE",
