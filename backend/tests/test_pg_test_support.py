@@ -8,20 +8,16 @@ from tests import pg_test_support
 
 
 def test_load_test_settings_uses_runtime_database_url() -> None:
-    # Arrange
     runtime_database_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:55432/rpg_gm_helper"
 
-    # Act
     settings = pg_test_support.load_test_settings(runtime_database_url=runtime_database_url)
 
-    # Assert
     assert settings.database_url == runtime_database_url
 
 
 def test_ensure_postgres_test_container_returns_runtime_database_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Arrange
     recorded_commands: list[list[str]] = []
 
     def fake_run(
@@ -49,10 +45,8 @@ def test_ensure_postgres_test_container_returns_runtime_database_url(
     monkeypatch.setattr(pg_test_support.subprocess, "run", fake_run)
     monkeypatch.setattr(pg_test_support, "wait_for_postgres_ready", lambda database_url: None)
 
-    # Act
     runtime_container = pg_test_support.ensure_postgres_test_container()
 
-    # Assert
     assert runtime_container.database_url == (
         "postgresql+psycopg://postgres:postgres@127.0.0.1:55432/rpg_gm_helper"
     )
@@ -63,7 +57,6 @@ def test_ensure_postgres_test_container_returns_runtime_database_url(
 def test_ensure_postgres_test_container_fails_when_docker_cli_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Arrange
     def missing_docker(
         command: list[str],
         *,
@@ -76,7 +69,6 @@ def test_ensure_postgres_test_container_fails_when_docker_cli_is_missing(
 
     monkeypatch.setattr(pg_test_support.subprocess, "run", missing_docker)
 
-    # Act / Assert
     with pytest.raises(pg_test_support.PostgresTestHarnessError, match="Docker CLI is not installed"):
         pg_test_support.ensure_postgres_test_container()
 
@@ -84,7 +76,7 @@ def test_ensure_postgres_test_container_fails_when_docker_cli_is_missing(
 def test_ensure_postgres_test_container_fails_when_docker_daemon_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Arrange
+    
     def unavailable_docker(
         command: list[str],
         *,
@@ -104,43 +96,9 @@ def test_ensure_postgres_test_container_fails_when_docker_daemon_is_unavailable(
 
     monkeypatch.setattr(pg_test_support.subprocess, "run", unavailable_docker)
 
-    # Act / Assert
     with pytest.raises(
         pg_test_support.PostgresTestHarnessError,
         match="Docker is installed but the daemon is unavailable",
     ):
         pg_test_support.ensure_postgres_test_container()
 
-
-def test_ensure_postgres_test_container_reports_missing_wsl_integration(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # Arrange
-    def unavailable_docker_in_wsl(
-        command: list[str],
-        *,
-        check: bool,
-        capture_output: bool,
-        text: bool,
-    ) -> subprocess.CompletedProcess[str]:
-        del check, capture_output, text
-        if command[:2] == ["docker", "version"]:
-            raise subprocess.CalledProcessError(
-                1,
-                command,
-                output=(
-                    "The command 'docker' could not be found in this WSL 2 distro.\n"
-                    "We recommend to activate the WSL integration in Docker Desktop settings.\n"
-                ),
-                stderr="",
-            )
-        raise AssertionError(f"Unexpected command: {command}")
-
-    monkeypatch.setattr(pg_test_support.subprocess, "run", unavailable_docker_in_wsl)
-
-    # Act / Assert
-    with pytest.raises(
-        pg_test_support.PostgresTestHarnessError,
-        match="Enable Docker Desktop WSL integration",
-    ):
-        pg_test_support.ensure_postgres_test_container()

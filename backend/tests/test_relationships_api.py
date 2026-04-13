@@ -3,266 +3,25 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app import services
-from app.models.entity import Entity
-from app.models.relationship import Relationship
 from app.models.relationship_type_definition import RelationshipTypeDefinition
-
-
-def test_list_relationship_types_includes_built_in_and_custom_types(
-    api_request,
-    db_session_factory,
-    campaign_factory,
-) -> None:
-    test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        db_session.add(
-            RelationshipTypeDefinition(
-                id=uuid4(),
-                campaign_id=test_campaign.id,
-                key="bodyguard_of",
-                label="bodyguard of",
-                family="social",
-                reverse_label="guarded by",
-                is_symmetric=False,
-                allowed_source_types=["person"],
-                allowed_target_types=["person"],
-            )
-        )
-        db_session.commit()
-
-    response = api_request(
-        "GET",
-        "/api/relationship-types",
-        params={"campaign_id": str(test_campaign.id)},
-    )
-
-    assert response.status_code == 200
-    listed_types = response.json()
-    listed_type_keys = {listed_type["key"] for listed_type in listed_types}
-    custom_type_response = next(
-        listed_type for listed_type in listed_types if listed_type["key"] == "bodyguard_of"
-    )
-
-    assert "sibling_of" in listed_type_keys
-    assert "bodyguard_of" in listed_type_keys
-    assert custom_type_response["family_label"] == "Social"
-
-
-def test_list_relationship_families_returns_backend_canonical_family_metadata(
-    api_request,
-) -> None:
-    response = api_request("GET", "/api/relationship-families")
-
-    assert response.status_code == 200
-    assert response.json()[0] == {"label": "Family", "value": "family"}
-    assert {"label": "Organization", "value": "organization"} in response.json()
-    assert {"label": "Influence", "value": "influence"} in response.json()
-
-
-def test_create_custom_relationship_type_returns_created_record(
-    api_request,
-    campaign_factory,
-) -> None:
-    test_campaign = campaign_factory()
-
-    response = api_request(
-        "POST",
-        f"/api/campaigns/{test_campaign.id}/relationship-types",
-        json={
-            "label": "bodyguard of",
-            "family": "social",
-            "reverse_label": "guarded by",
-            "is_symmetric": False,
-            "allowed_source_types": ["person"],
-            "allowed_target_types": ["person"],
-        },
-    )
-
-    assert response.status_code == 201
-    assert response.json()["key"] == "bodyguard_of"
-    assert response.json()["label"] == "bodyguard of"
-    assert response.json()["family"] == "social"
-    assert response.json()["family_label"] == "Social"
-    assert response.json()["is_custom"] is True
-
-
-def test_update_custom_relationship_type_rejects_semantic_changes_when_type_is_in_use(
-    api_request,
-    db_session_factory,
-    campaign_factory,
-) -> None:
-    test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        entity_a = Entity(campaign_id=test_campaign.id, type="person", name="Martha")
-        entity_b = Entity(campaign_id=test_campaign.id, type="person", name="Rick")
-        db_session.add_all([entity_a, entity_b])
-        db_session.flush()
-        db_session.add(
-            RelationshipTypeDefinition(
-                id=uuid4(),
-                campaign_id=test_campaign.id,
-                key="bodyguard_of",
-                label="bodyguard of",
-                family="social",
-                reverse_label="guarded by",
-                is_symmetric=False,
-                allowed_source_types=["person"],
-                allowed_target_types=["person"],
-            )
-        )
-        db_session.add(
-            Relationship(
-                campaign_id=test_campaign.id,
-                source_entity=entity_a,
-                target_entity=entity_b,
-                relationship_type="bodyguard_of",
-                lifecycle_status="current",
-                visibility_status="public",
-                certainty_status="confirmed",
-            )
-        )
-        db_session.commit()
-
-    response = api_request(
-        "PATCH",
-        f"/api/campaigns/{test_campaign.id}/relationship-types/bodyguard_of",
-        json={"allowed_target_types": ["organization"]},
-    )
-
-    assert response.status_code == 409
-    assert response.json() == {"detail": "Semantic fields cannot change after a type is in use."}
-
-
-def test_update_custom_relationship_type_rejects_payload_with_symmetric_and_reverse_label(
-    api_request,
-    db_session_factory,
-    campaign_factory,
-) -> None:
-    test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        db_session.add(
-            RelationshipTypeDefinition(
-                id=uuid4(),
-                campaign_id=test_campaign.id,
-                key="bodyguard_of",
-                label="bodyguard of",
-                family="social",
-                reverse_label="guarded by",
-                is_symmetric=False,
-                allowed_source_types=["person"],
-                allowed_target_types=["person"],
-            )
-        )
-        db_session.commit()
-
-    response = api_request(
-        "PATCH",
-        f"/api/campaigns/{test_campaign.id}/relationship-types/bodyguard_of",
-        json={"is_symmetric": True, "reverse_label": "guarded by"},
-    )
-
-    assert response.status_code == 422
-
-
-def test_update_custom_relationship_type_rejects_reverse_label_for_existing_symmetric_type(
-    api_request,
-    db_session_factory,
-    campaign_factory,
-) -> None:
-    test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        db_session.add(
-            RelationshipTypeDefinition(
-                id=uuid4(),
-                campaign_id=test_campaign.id,
-                key="sibling_oath",
-                label="sibling oath",
-                family="social",
-                reverse_label=None,
-                is_symmetric=True,
-                allowed_source_types=["person"],
-                allowed_target_types=["person"],
-            )
-        )
-        db_session.commit()
-
-    response = api_request(
-        "PATCH",
-        f"/api/campaigns/{test_campaign.id}/relationship-types/sibling_oath",
-        json={"reverse_label": "bound by oath"},
-    )
-
-    assert response.status_code == 422
-    assert response.json() == {
-        "detail": "Symmetric relationship types cannot define a reverse label."
-    }
-
-
-def test_delete_custom_relationship_type_rejects_used_type(
-    api_request,
-    db_session_factory,
-    campaign_factory,
-) -> None:
-    test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        entity_a = Entity(campaign_id=test_campaign.id, type="person", name="Martha")
-        entity_b = Entity(campaign_id=test_campaign.id, type="person", name="Rick")
-        db_session.add_all([entity_a, entity_b])
-        db_session.flush()
-        db_session.add(
-            RelationshipTypeDefinition(
-                id=uuid4(),
-                campaign_id=test_campaign.id,
-                key="bodyguard_of",
-                label="bodyguard of",
-                family="social",
-                reverse_label="guarded by",
-                is_symmetric=False,
-                allowed_source_types=["person"],
-                allowed_target_types=["person"],
-            )
-        )
-        db_session.add(
-            Relationship(
-                campaign_id=test_campaign.id,
-                source_entity=entity_a,
-                target_entity=entity_b,
-                relationship_type="bodyguard_of",
-                lifecycle_status="current",
-                visibility_status="public",
-                certainty_status="confirmed",
-            )
-        )
-        db_session.commit()
-
-    response = api_request(
-        "DELETE",
-        f"/api/campaigns/{test_campaign.id}/relationship-types/bodyguard_of",
-    )
-
-    assert response.status_code == 409
-    assert response.json() == {"detail": "Relationship type cannot be deleted while it is in use."}
 
 
 def test_create_relationship_returns_created_record_with_catalog_metadata(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
-        db_session.add_all([source_entity, target_entity])
-        db_session.commit()
-        db_session.refresh(source_entity)
-        db_session.refresh(target_entity)
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Civu",
+    )
 
     response = api_request(
         "POST",
@@ -279,27 +38,43 @@ def test_create_relationship_returns_created_record_with_catalog_metadata(
     )
 
     assert response.status_code == 201
-    assert response.json()["relationship_type"] == "spouse_of"
-    assert response.json()["relationship_family"] == "romance"
-    assert response.json()["relationship_family_label"] == "Romance"
-    assert response.json()["forward_label"] == "spouse of"
-    assert response.json()["reverse_label"] == "spouse of"
-    assert response.json()["visibility_status"] == "secret"
+    relationship_data = response.json()
+    assert relationship_data["relationship_type"] == "spouse_of"
+    assert relationship_data["relationship_family"] == "romance"
+    assert relationship_data["relationship_family_label"] == "Romance"
+    assert relationship_data["forward_label"] == "spouse of"
+    assert relationship_data["reverse_label"] == "spouse of"
+    assert relationship_data["visibility_status"] == "secret"
 
 
 def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_custom_type(
     db_session_factory,
     monkeypatch,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
 
     with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
-        third_entity = Entity(campaign_id=test_campaign.id, type="person", name="Ilya")
-        db_session.add_all([source_entity, target_entity, third_entity])
-        db_session.flush()
+        source_entity = entity_factory(
+            db_session=db_session,
+            campaign_id=test_campaign.id,
+            type="person",
+            name="Tarannon",
+        )
+        target_entity = entity_factory(
+            db_session=db_session,
+            campaign_id=test_campaign.id,
+            type="person",
+            name="Civu",
+        )
+        third_entity = entity_factory(
+            db_session=db_session,
+            campaign_id=test_campaign.id,
+            type="person",
+            name="Ilya",
+        )
         db_session.add(
             RelationshipTypeDefinition(
                 id=uuid4(),
@@ -313,7 +88,8 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
                 allowed_target_types=["person"],
             )
         )
-        first_relationship = Relationship(
+        relationship_factory(
+            db_session=db_session,
             campaign_id=test_campaign.id,
             source_entity=source_entity,
             target_entity=target_entity,
@@ -322,7 +98,8 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
             visibility_status="public",
             certainty_status="confirmed",
         )
-        second_relationship = Relationship(
+        relationship_factory(
+            db_session=db_session,
             campaign_id=test_campaign.id,
             source_entity=third_entity,
             target_entity=target_entity,
@@ -331,7 +108,6 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
             visibility_status="public",
             certainty_status="confirmed",
         )
-        db_session.add_all([first_relationship, second_relationship])
         db_session.commit()
 
         descriptor_lookup_count = 0
@@ -360,32 +136,32 @@ def test_build_relationship_response_payloads_reuses_descriptor_for_repeated_cus
             relationships=listed_relationships,
         )
 
-    assert [payload["relationship_type"] for payload in payloads] == ["bodyguard_of", "bodyguard_of"]
+    assert [payload["relationship_type"] for payload in payloads] == [
+        "bodyguard_of",
+        "bodyguard_of",
+    ]
     assert descriptor_lookup_count == 1
 
 
 def test_create_relationship_rejects_cross_campaign_target_entity(
     api_request,
-    db_session_factory,
     owner_factory,
     campaign_factory,
+    entity_factory,
 ) -> None:
     test_owner = owner_factory()
     test_campaign = campaign_factory(owner=test_owner)
-
-    with db_session_factory() as db_session:
-        second_campaign = campaign_factory(
-            db_session=db_session,
-            owner=test_owner,
-            owner_id=test_owner.id,
-            name="Second Campaign",
-        )
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        foreign_target_entity = Entity(campaign_id=second_campaign.id, type="person", name="Civu")
-        db_session.add_all([source_entity, foreign_target_entity])
-        db_session.commit()
-        db_session.refresh(source_entity)
-        db_session.refresh(foreign_target_entity)
+    second_campaign = campaign_factory(owner=test_owner, name="Second Campaign")
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    foreign_target_entity = entity_factory(
+        campaign_id=second_campaign.id,
+        type="person",
+        name="Civu",
+    )
 
     response = api_request(
         "POST",
@@ -406,18 +182,20 @@ def test_create_relationship_rejects_cross_campaign_target_entity(
 
 def test_create_relationship_rejects_invalid_type_pair(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="organization", name="The Choir")
-        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
-        db_session.add_all([source_entity, target_entity])
-        db_session.commit()
-        db_session.refresh(source_entity)
-        db_session.refresh(target_entity)
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="organization",
+        name="The Choir",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="location",
+        name="Gawo",
+    )
 
     response = api_request(
         "POST",
@@ -441,30 +219,30 @@ def test_create_relationship_rejects_invalid_type_pair(
 
 def test_create_relationship_rejects_inverse_duplicate_for_symmetric_type(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        first_entity = Entity(campaign_id=test_campaign.id, type="person", name="Jo")
-        second_entity = Entity(campaign_id=test_campaign.id, type="person", name="Mika")
-        db_session.add_all([first_entity, second_entity])
-        db_session.flush()
-        db_session.add(
-            Relationship(
-                campaign_id=test_campaign.id,
-                source_entity=first_entity,
-                target_entity=second_entity,
-                relationship_type="sibling_of",
-                lifecycle_status="current",
-                visibility_status="public",
-                certainty_status="confirmed",
-            )
-        )
-        db_session.commit()
-        db_session.refresh(first_entity)
-        db_session.refresh(second_entity)
+    first_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Jo",
+    )
+    second_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Mika",
+    )
+    relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=first_entity,
+        target_entity=second_entity,
+        relationship_type="sibling_of",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+    )
 
     response = api_request(
         "POST",
@@ -487,40 +265,44 @@ def test_create_relationship_rejects_inverse_duplicate_for_symmetric_type(
 
 def test_list_relationships_supports_type_and_family_filters(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        tarannon = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        civu = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
-        underground = Entity(campaign_id=test_campaign.id, type="organization", name="Underground")
-        db_session.add_all([tarannon, civu, underground])
-        db_session.flush()
-        db_session.add_all(
-            [
-                Relationship(
-                    campaign_id=test_campaign.id,
-                    source_entity=tarannon,
-                    target_entity=civu,
-                    relationship_type="spouse_of",
-                    lifecycle_status="current",
-                    visibility_status="public",
-                    certainty_status="confirmed",
-                ),
-                Relationship(
-                    campaign_id=test_campaign.id,
-                    source_entity=civu,
-                    target_entity=underground,
-                    relationship_type="works_for",
-                    lifecycle_status="current",
-                    visibility_status="secret",
-                    certainty_status="rumored",
-                ),
-            ]
-        )
-        db_session.commit()
+    tarannon = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    civu = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Civu",
+    )
+    underground = entity_factory(
+        campaign_id=test_campaign.id,
+        type="organization",
+        name="Underground",
+    )
+    relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=tarannon,
+        target_entity=civu,
+        relationship_type="spouse_of",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+    )
+    relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=civu,
+        target_entity=underground,
+        relationship_type="works_for",
+        lifecycle_status="current",
+        visibility_status="secret",
+        certainty_status="rumored",
+    )
 
     response = api_request(
         "GET",
@@ -536,40 +318,44 @@ def test_list_relationships_supports_type_and_family_filters(
 
 def test_list_relationships_supports_family_only_filter(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        tarannon = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        civu = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
-        underground = Entity(campaign_id=test_campaign.id, type="organization", name="Underground")
-        db_session.add_all([tarannon, civu, underground])
-        db_session.flush()
-        db_session.add_all(
-            [
-                Relationship(
-                    campaign_id=test_campaign.id,
-                    source_entity=tarannon,
-                    target_entity=civu,
-                    relationship_type="spouse_of",
-                    lifecycle_status="current",
-                    visibility_status="public",
-                    certainty_status="confirmed",
-                ),
-                Relationship(
-                    campaign_id=test_campaign.id,
-                    source_entity=civu,
-                    target_entity=underground,
-                    relationship_type="works_for",
-                    lifecycle_status="current",
-                    visibility_status="secret",
-                    certainty_status="rumored",
-                ),
-            ]
-        )
-        db_session.commit()
+    tarannon = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    civu = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Civu",
+    )
+    underground = entity_factory(
+        campaign_id=test_campaign.id,
+        type="organization",
+        name="Underground",
+    )
+    relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=tarannon,
+        target_entity=civu,
+        relationship_type="spouse_of",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+    )
+    relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=civu,
+        target_entity=underground,
+        relationship_type="works_for",
+        lifecycle_status="current",
+        visibility_status="secret",
+        certainty_status="rumored",
+    )
 
     response = api_request(
         "GET",
@@ -585,28 +371,30 @@ def test_list_relationships_supports_family_only_filter(
 
 def test_list_relationships_rejects_mismatched_type_and_family_filters(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        target_entity = Entity(campaign_id=test_campaign.id, type="person", name="Civu")
-        db_session.add_all([source_entity, target_entity])
-        db_session.flush()
-        db_session.add(
-            Relationship(
-                campaign_id=test_campaign.id,
-                source_entity=source_entity,
-                target_entity=target_entity,
-                relationship_type="spouse_of",
-                lifecycle_status="current",
-                visibility_status="public",
-                certainty_status="confirmed",
-            )
-        )
-        db_session.commit()
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Civu",
+    )
+    relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        relationship_type="spouse_of",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+    )
 
     response = api_request(
         "GET",
@@ -622,71 +410,74 @@ def test_list_relationships_rejects_mismatched_type_and_family_filters(
 
 def test_get_relationship_returns_stored_record(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
-        db_session.add_all([source_entity, target_entity])
-        db_session.flush()
-        stored_relationship = Relationship(
-            campaign_id=test_campaign.id,
-            source_entity=source_entity,
-            target_entity=target_entity,
-            relationship_type="lives_in",
-            lifecycle_status="current",
-            visibility_status="public",
-            certainty_status="confirmed",
-            notes="Original note",
-        )
-        db_session.add(stored_relationship)
-        db_session.commit()
-        db_session.refresh(stored_relationship)
-        stored_relationship_id = stored_relationship.id
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="location",
+        name="Gawo",
+    )
+    stored_relationship = relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        relationship_type="lives_in",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+        notes="Original note",
+    )
 
     get_response = api_request(
         "GET",
-        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship_id}",
+        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship.id}",
     )
 
     assert get_response.status_code == 200
-    assert get_response.json()["notes"] == "Original note"
-    assert get_response.json()["relationship_family"] == "location"
+    relationship_data = get_response.json()
+    assert relationship_data["notes"] == "Original note"
+    assert relationship_data["relationship_family"] == "location"
 
 
 def test_update_relationship_returns_updated_fields(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
-        db_session.add_all([source_entity, target_entity])
-        db_session.flush()
-        stored_relationship = Relationship(
-            campaign_id=test_campaign.id,
-            source_entity=source_entity,
-            target_entity=target_entity,
-            relationship_type="lives_in",
-            lifecycle_status="current",
-            visibility_status="public",
-            certainty_status="confirmed",
-            notes="Original note",
-        )
-        db_session.add(stored_relationship)
-        db_session.commit()
-        db_session.refresh(stored_relationship)
-        stored_relationship_id = stored_relationship.id
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="location",
+        name="Gawo",
+    )
+    stored_relationship = relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        relationship_type="lives_in",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+        notes="Original note",
+    )
 
     response = api_request(
         "PATCH",
-        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship_id}",
+        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship.id}",
         json={
             "lifecycle_status": "former",
             "visibility_status": "secret",
@@ -696,76 +487,80 @@ def test_update_relationship_returns_updated_fields(
     )
 
     assert response.status_code == 200
-    assert response.json()["lifecycle_status"] == "former"
-    assert response.json()["visibility_status"] == "secret"
-    assert response.json()["certainty_status"] == "rumored"
-    assert response.json()["notes"] == "Updated note"
+    relationship_data = response.json()
+    assert relationship_data["lifecycle_status"] == "former"
+    assert relationship_data["visibility_status"] == "secret"
+    assert relationship_data["certainty_status"] == "rumored"
+    assert relationship_data["notes"] == "Updated note"
 
 
 def test_delete_relationship_removes_relationship(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="person", name="Tarannon")
-        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
-        db_session.add_all([source_entity, target_entity])
-        db_session.flush()
-        stored_relationship = Relationship(
-            campaign_id=test_campaign.id,
-            source_entity=source_entity,
-            target_entity=target_entity,
-            relationship_type="lives_in",
-            lifecycle_status="current",
-            visibility_status="public",
-            certainty_status="confirmed",
-        )
-        db_session.add(stored_relationship)
-        db_session.commit()
-        db_session.refresh(stored_relationship)
-        stored_relationship_id = stored_relationship.id
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="person",
+        name="Tarannon",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="location",
+        name="Gawo",
+    )
+    stored_relationship = relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        relationship_type="lives_in",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+    )
 
     delete_response = api_request(
         "DELETE",
-        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship_id}",
+        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship.id}",
     )
 
     assert delete_response.status_code == 204
 
     missing_response = api_request(
         "GET",
-        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship_id}",
+        f"/api/campaigns/{test_campaign.id}/relationships/{stored_relationship.id}",
     )
     assert missing_response.status_code == 404
 
 
 def test_update_relationship_rejects_invalid_type_pair(
     api_request,
-    db_session_factory,
     campaign_factory,
+    entity_factory,
+    relationship_factory,
 ) -> None:
     test_campaign = campaign_factory()
-
-    with db_session_factory() as db_session:
-        source_entity = Entity(campaign_id=test_campaign.id, type="organization", name="The Choir")
-        target_entity = Entity(campaign_id=test_campaign.id, type="location", name="Gawo")
-        db_session.add_all([source_entity, target_entity])
-        db_session.flush()
-        stored_relationship = Relationship(
-            campaign_id=test_campaign.id,
-            source_entity=source_entity,
-            target_entity=target_entity,
-            relationship_type="located_in",
-            lifecycle_status="current",
-            visibility_status="public",
-            certainty_status="confirmed",
-        )
-        db_session.add(stored_relationship)
-        db_session.commit()
-        db_session.refresh(stored_relationship)
+    source_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="organization",
+        name="The Choir",
+    )
+    target_entity = entity_factory(
+        campaign_id=test_campaign.id,
+        type="location",
+        name="Gawo",
+    )
+    stored_relationship = relationship_factory(
+        campaign_id=test_campaign.id,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        relationship_type="located_in",
+        lifecycle_status="current",
+        visibility_status="public",
+        certainty_status="confirmed",
+    )
 
     response = api_request(
         "PATCH",

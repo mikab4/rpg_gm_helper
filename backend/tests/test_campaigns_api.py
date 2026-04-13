@@ -7,10 +7,7 @@ def test_create_campaign_returns_created_record(
     api_request,
     owner_factory,
 ) -> None:
-    owner = owner_factory(
-        email="gm@example.com",
-        display_name="Local GM",
-    )
+    owner = owner_factory()
 
     response = api_request(
         "POST",
@@ -23,9 +20,10 @@ def test_create_campaign_returns_created_record(
     )
 
     assert response.status_code == 201
-    assert response.json()["owner_id"] == str(owner.id)
-    assert response.json()["name"] == "Iron Vale"
-    assert response.json()["description"] == "Frontier survival"
+    campaign_data = response.json()
+    assert campaign_data["owner_id"] == str(owner.id)
+    assert campaign_data["name"] == "Iron Vale"
+    assert campaign_data["description"] == "Frontier survival"
 
 
 def test_create_campaign_returns_not_found_for_unknown_owner(api_request) -> None:
@@ -45,17 +43,10 @@ def test_create_campaign_returns_not_found_for_unknown_owner(api_request) -> Non
 def test_create_campaign_returns_conflict_for_duplicate_owner_name(
     api_request,
     owner_factory,
+    campaign_factory,
 ) -> None:
     owner = owner_factory()
-
-    api_request(
-        "POST",
-        "/api/campaigns",
-        json={
-            "owner_id": str(owner.id),
-            "name": "Iron Vale",
-        },
-    )
+    campaign_factory(owner=owner, name="Iron Vale")
 
     response = api_request(
         "POST",
@@ -87,8 +78,9 @@ def test_create_campaign_returns_422_for_unknown_field(
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["loc"] == ["body", "rogue"]
-    assert response.json()["detail"][0]["type"] == "extra_forbidden"
+    campaign_data = response.json()
+    assert campaign_data["detail"][0]["loc"] == ["body", "rogue"]
+    assert campaign_data["detail"][0]["type"] == "extra_forbidden"
 
 
 def test_list_campaigns_supports_owner_filter(
@@ -135,8 +127,9 @@ def test_update_campaign_returns_updated_fields(
     )
 
     assert response.status_code == 200
-    assert response.json()["name"] == "Shadows Revised"
-    assert response.json()["description"] == "Updated"
+    campaign_data = response.json()
+    assert campaign_data["name"] == "Shadows Revised"
+    assert campaign_data["description"] == "Updated"
 
 
 def test_delete_campaign_removes_campaign(
@@ -190,5 +183,6 @@ def test_update_campaign_returns_422_for_null_name(
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["loc"] == ["body"]
-    assert response.json()["detail"][0]["type"] == "value_error"
+    campaign_data = response.json()
+    assert campaign_data["detail"][0]["loc"] == ["body"]
+    assert campaign_data["detail"][0]["type"] == "value_error"

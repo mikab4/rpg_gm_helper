@@ -15,9 +15,10 @@ def test_get_default_owner_returns_existing_owner(
     response = api_request("GET", "/api/owners/default")
 
     assert response.status_code == 200
-    assert response.json()["id"] == str(existing_owner.id)
-    assert response.json()["email"] == "gm@example.com"
-    assert response.json()["display_name"] == "Local GM"
+    owner_data = response.json()
+    assert owner_data["id"] == str(existing_owner.id)
+    assert owner_data["email"] == "gm@example.com"
+    assert owner_data["display_name"] == "Local GM"
 
 
 def test_get_default_owner_creates_local_owner_when_none_exists(
@@ -27,12 +28,12 @@ def test_get_default_owner_creates_local_owner_when_none_exists(
     response = api_request("GET", "/api/owners/default")
 
     assert response.status_code == 200
-    response_payload = response.json()
-    assert response_payload["email"] == "gm@example.com"
-    assert response_payload["display_name"] == "Local GM"
+    owner_data = response.json()
+    assert owner_data["email"] == "gm@example.com"
+    assert owner_data["display_name"] == "Local GM"
 
     with db_session_factory() as db_session:
         stored_owners = db_session.query(Owner).all()
 
     assert len(stored_owners) == 1
-    assert str(stored_owners[0].id) == response_payload["id"]
+    assert str(stored_owners[0].id) == owner_data["id"]
