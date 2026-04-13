@@ -1,23 +1,15 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 
 import pytest
 
 from tests import pg_test_support
 
 
-def test_load_test_settings_uses_runtime_database_url_without_env_files(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
+def test_load_test_settings_uses_runtime_database_url() -> None:
     # Arrange
-    missing_env_file = tmp_path / ".env.test"
-    missing_example_file = tmp_path / ".env.test.example"
     runtime_database_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:55432/rpg_gm_helper"
-    monkeypatch.setattr(pg_test_support, "TEST_ENV_FILE", missing_env_file)
-    monkeypatch.setattr(pg_test_support, "TEST_ENV_EXAMPLE_FILE", missing_example_file)
 
     # Act
     settings = pg_test_support.load_test_settings(runtime_database_url=runtime_database_url)

@@ -11,10 +11,8 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import NullPool
 
-from app.config import Settings, load_settings
+from app.config import Settings
 
-TEST_ENV_FILE = Path(__file__).resolve().parent.parent / ".env.test"
-TEST_ENV_EXAMPLE_FILE = Path(__file__).resolve().parent.parent / ".env.test.example"
 POSTGRES_TEST_IMAGE = "postgres:16-alpine"
 POSTGRES_TEST_CONTAINER_PREFIX = "rpg-gm-helper-test-postgres"
 POSTGRES_TEST_CONTAINER_PORT = 5432
@@ -35,20 +33,8 @@ class PostgresTestContainer:
     database_url: str
 
 
-def load_test_settings(*, runtime_database_url: str | None = None) -> Settings:
-    if runtime_database_url is not None:
-        return Settings(_env_file=None, database_url=runtime_database_url)
-
-    if TEST_ENV_FILE.is_file():
-        return load_settings(env_file=TEST_ENV_FILE)
-
-    if TEST_ENV_EXAMPLE_FILE.is_file():
-        return load_settings(env_file=TEST_ENV_EXAMPLE_FILE)
-
-    raise PostgresTestHarnessError(
-        "Missing backend/.env.test and backend/.env.test.example, and no runtime database URL "
-        "was provided for Postgres tests."
-    )
+def load_test_settings(*, runtime_database_url: str) -> Settings:
+    return Settings(_env_file=None, database_url=runtime_database_url)
 
 
 def build_alembic_config() -> Config:
