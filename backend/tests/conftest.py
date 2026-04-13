@@ -103,6 +103,7 @@ def sqlite_engine(tmp_path: Path) -> Iterator[Engine]:
             yield sqlite_db_engine
         finally:
             Base.metadata.drop_all(sqlite_db_engine)
+            sqlite_db_engine.dispose()
 
 
 @pytest.fixture
