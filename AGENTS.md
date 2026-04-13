@@ -8,7 +8,6 @@ RPG GM Helper is a single-user, local-first tool for tabletop RPG Game Masters. 
 - extracting candidate entities and relationships from text
 - requiring human review before extracted data becomes canonical
 - searching across entities and notes
-- optionally exporting approved entities to Kanka
 
 This repository is intentionally being built as a foundation for later work on semantic search, model-assisted extraction, and training-oriented workflows.
 
@@ -44,7 +43,6 @@ If a proposed change conflicts with those documents, call it out explicitly inst
 - Avoid heavy client-side state frameworks, custom hook abstractions, or React-specific architecture unless they solve a concrete v1 problem now.
 - Prefer styling and component structure that preserve CSS, UX flows, and API contracts if the frontend framework is changed later.
 - Reconsider the frontend framework only if React materially slows delivery of the admin-style UI, not merely because another framework looks cleaner.
-- Treat Kanka as an optional export adapter, not the source of truth.
 - Keep extraction and search behind internal service boundaries so future semantic search or model-backed extraction can be added cleanly.
 - Preserve provenance for extracted entities and relationships.
 - Store raw source text so extraction can be rerun later.
@@ -59,7 +57,6 @@ In scope:
 - source document storage
 - extraction jobs and candidate review
 - PostgreSQL full-text search
-- optional Kanka export
 
 ## Data Modeling Guidance
 
@@ -80,6 +77,17 @@ In scope:
 - Avoid broad names like `data`, `payload`, `response`, `result`, or `session` when a more specific name such as `campaign_create`, `created_entity_response`, or `db_session` is available.
 - Apply the same naming rule to fixtures, route handlers, services, and tests.
 
+## Backend Testing Guidance
+
+- For Python backend tests, use the repo-local `py-db-tdd` skill at `.agents/skills/py-db-tdd/SKILL.md`.
+- Prefer explicit factory fixtures such as `owner_factory`, `campaign_factory`, `entity_factory`, and `relationship_factory` for scenario data.
+- Keep infrastructure plumbing in `backend/tests/conftest.py`; keep scenario data visible in the Arrange step of each test.
+- Avoid named scenario fixtures such as `campaign_with_two_entities` or `owner_with_duplicate_campaign`.
+- Use `db_session_factory()` when shared session state is part of the scenario, not as the default setup tool.
+- Keep Postgres container lifecycle and readiness checks in test support code rather than in individual tests.
+- Assume `uv run pytest` is the default backend test entrypoint and that Postgres-backed tests provision a disposable Docker container automatically.
+- If Docker is unavailable, treat Postgres-backed test setup failures as real environment problems, not as reasons to silently skip coverage.
+
 ## Frontend Guidance
 
 - Keep the v1 UI task-oriented and high-utility, but do not default to a bland utility look if a stronger workspace identity improves usability.
@@ -99,7 +107,6 @@ At minimum, cover:
 - provenance preservation
 - search behavior
 - campaign ownership validation
-- Kanka export payload transformation
 
 Use sample notes under `docs/sample-notes/` for repeatable tests and demos.
 
