@@ -106,12 +106,6 @@ def sqlite_engine(tmp_path: Path) -> Iterator[Engine]:
 
 
 @pytest.fixture
-def db_session(sqlite_engine: Engine) -> Iterator[Session]:
-    with Session(sqlite_engine, expire_on_commit=False) as session:
-        yield session
-
-
-@pytest.fixture
 def db_session_factory(sqlite_engine: Engine):
     return sessionmaker(bind=sqlite_engine, expire_on_commit=False, future=True)
 

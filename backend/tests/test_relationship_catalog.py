@@ -29,12 +29,13 @@ def test_build_descriptor_from_custom_type_uses_stored_reverse_label_for_asymmet
 
 
 def test_list_relationship_type_descriptors_by_family_returns_matching_descriptors(
-    db_session,
+    db_session_factory,
 ) -> None:
-    romance_descriptors = list_relationship_type_descriptors_by_family(
-        db_session,
-        relationship_family=RelationshipFamily.ROMANCE,
-    )
+    with db_session_factory() as db_session:
+        romance_descriptors = list_relationship_type_descriptors_by_family(
+            db_session,
+            relationship_family=RelationshipFamily.ROMANCE,
+        )
 
     returned_keys = {descriptor.key for descriptor in romance_descriptors}
 
