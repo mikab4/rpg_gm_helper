@@ -1,25 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
-from contextlib import contextmanager
-
 import pytest
 from sqlalchemy import inspect
-from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from alembic import command
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.models import Campaign, Entity, ExtractionCandidate, ExtractionJob, Owner, Relationship
 from app.models.relationship_type_definition import RelationshipTypeDefinition
 from app.models.session_note import SessionNote
 from app.models.source_document import SourceDocument
-from tests.pg_test_support import (
-    build_alembic_config,
-    create_test_engine,
-    reset_public_schema,
-)
+from tests.pg_test_support import upgraded_postgres_test_engine
 
 EXPECTED_TABLES = {
     "alembic_version",
@@ -35,53 +26,29 @@ EXPECTED_TABLES = {
 }
 
 
-@contextmanager
-def upgraded_engine(
-    monkeypatch: pytest.MonkeyPatch,
-    postgres_test_settings: Settings,
-) -> Iterator[Engine]:
-    settings = postgres_test_settings
-    engine = create_test_engine(settings)
-
-    reset_public_schema(engine)
-    monkeypatch.setenv("DATABASE_URL", settings.database_url)
-    get_settings.cache_clear()
-
-    alembic_config = build_alembic_config()
-    upgraded = False
-
-    try:
-        command.upgrade(alembic_config, "head")
-        upgraded = True
-        yield engine
-    finally:
-        if upgraded:
-            command.downgrade(alembic_config, "base")
-        get_settings.cache_clear()
-        engine.dispose()
-
-
 def test_alembic_upgrade_head_creates_expected_tables(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         inspector = inspect(engine)
-        relationship_columns = {
-            column["name"] for column in inspector.get_columns("entity_relationships")
-        }
+        relationship_columns = {column["name"] for column in inspector.get_columns("entity_relationships")}
 
         assert EXPECTED_TABLES.issubset(set(inspector.get_table_names()))
-        assert {"lifecycle_status", "visibility_status", "certainty_status"}.issubset(
-            relationship_columns
-        )
+        assert {"lifecycle_status", "visibility_status", "certainty_status"}.issubset(relationship_columns)
 
 
 def test_source_document_rejects_session_note_from_another_campaign(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign_a = Campaign(owner=owner, name="Campaign A")
@@ -109,7 +76,10 @@ def test_extraction_job_rejects_source_document_from_another_campaign(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign_a = Campaign(owner=owner, name="Campaign A")
@@ -146,7 +116,10 @@ def test_extraction_candidate_rejects_job_from_another_campaign(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign_a = Campaign(owner=owner, name="Campaign A")
@@ -190,7 +163,10 @@ def test_relationship_rejects_target_entity_from_another_campaign(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign_a = Campaign(owner=owner, name="Campaign A")
@@ -219,7 +195,10 @@ def test_alembic_migration_rejects_invalid_relationship_type_direction_labels(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign = Campaign(owner=owner, name="Campaign A")
@@ -248,7 +227,10 @@ def test_session_note_delete_is_restricted_when_source_document_references_it(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign = Campaign(owner=owner, name="Campaign A")
@@ -288,7 +270,10 @@ def test_source_document_delete_is_restricted_when_records_reference_it(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> None:
-    with upgraded_engine(monkeypatch, postgres_test_settings) as engine:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             owner = Owner(email="gm@example.com")
             campaign = Campaign(owner=owner, name="Campaign A")

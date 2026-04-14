@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import subprocess
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
@@ -11,7 +13,8 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import NullPool
 
-from app.config import Settings
+from alembic import command
+from app.config import Settings, get_settings
 
 POSTGRES_TEST_IMAGE = "postgres:16-alpine"
 POSTGRES_TEST_CONTAINER_PREFIX = "rpg-gm-helper-test-postgres"
@@ -53,9 +56,7 @@ def ensure_docker_available() -> None:
     try:
         _run_subprocess(["docker", "version"])
     except FileNotFoundError as exc:
-        raise PostgresTestHarnessError(
-            "Docker CLI is not installed. Install Docker and rerun `uv run pytest`."
-        ) from exc
+        raise PostgresTestHarnessError("Docker CLI is not installed. Install Docker and rerun `uv run pytest`.") from exc
     except subprocess.CalledProcessError as exc:
         docker_error_output = _command_error_output(exc)
         if "WSL integration" in docker_error_output:
@@ -70,10 +71,7 @@ def ensure_docker_available() -> None:
 
 
 def build_runtime_database_url(*, host: str, port: int) -> str:
-    return (
-        "postgresql+psycopg://"
-        f"{POSTGRES_TEST_USER}:{POSTGRES_TEST_PASSWORD}@{host}:{port}/{POSTGRES_TEST_DATABASE}"
-    )
+    return f"postgresql+psycopg://{POSTGRES_TEST_USER}:{POSTGRES_TEST_PASSWORD}@{host}:{port}/{POSTGRES_TEST_DATABASE}"
 
 
 def start_postgres_test_container() -> str:
@@ -101,14 +99,10 @@ def start_postgres_test_container() -> str:
 
 
 def get_postgres_test_container_port(container_name: str) -> int:
-    port_output = _run_subprocess(
-        ["docker", "port", container_name, f"{POSTGRES_TEST_CONTAINER_PORT}/tcp"]
-    ).stdout.strip()
+    port_output = _run_subprocess(["docker", "port", container_name, f"{POSTGRES_TEST_CONTAINER_PORT}/tcp"]).stdout.strip()
     host, _, port_text = port_output.rpartition(":")
     if not host or not port_text.isdigit():
-        raise PostgresTestHarnessError(
-            f"Could not determine mapped Postgres port for container {container_name!r}."
-        )
+        raise PostgresTestHarnessError(f"Could not determine mapped Postgres port for container {container_name!r}.")
     return int(port_text)
 
 
@@ -125,8 +119,7 @@ def wait_for_postgres_ready(database_url: str, *, timeout_seconds: float = 20.0)
             except OperationalError:
                 if time.monotonic() >= deadline:
                     raise PostgresTestHarnessError(
-                        "Timed out while waiting for the Dockerized Postgres test container "
-                        "to accept connections."
+                        "Timed out while waiting for the Dockerized Postgres test container to accept connections."
                     )
                 time.sleep(0.5)
     finally:
@@ -169,9 +162,7 @@ def create_test_engine(settings: Settings) -> Engine:
             connection.execute(text("SELECT 1"))
     except OperationalError:
         engine.dispose()
-        raise PostgresTestHarnessError(
-            "Postgres test database is unavailable even though the runtime settings were loaded."
-        )
+        raise PostgresTestHarnessError("Postgres test database is unavailable even though the runtime settings were loaded.")
 
     return engine
 
@@ -180,3 +171,29 @@ def reset_public_schema(engine: Engine) -> None:
     with engine.begin() as connection:
         connection.execute(text("DROP SCHEMA public CASCADE"))
         connection.execute(text("CREATE SCHEMA public"))
+
+
+@contextmanager
+def upgraded_postgres_test_engine(
+    *,
+    monkeypatch,
+    settings: Settings,
+) -> Iterator[Engine]:
+    engine = create_test_engine(settings)
+    alembic_config = build_alembic_config()
+    upgraded = False
+
+    reset_public_schema(engine)
+    monkeypatch.setenv("DATABASE_URL", settings.database_url)
+    get_settings.cache_clear()
+
+    try:
+        command.upgrade(alembic_config, "head")
+        upgraded = True
+        yield engine
+    finally:
+        if upgraded:
+            command.downgrade(alembic_config, "base")
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        get_settings.cache_clear()
+        engine.dispose()

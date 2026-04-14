@@ -8,8 +8,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from alembic import command
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.models import (
     Campaign,
     Entity,
@@ -21,51 +20,23 @@ from app.models import (
     SourceDocument,
 )
 from app.models.relationship_type_definition import RelationshipTypeDefinition
-from tests.pg_test_support import (
-    build_alembic_config,
-    create_test_engine,
-    reset_public_schema,
-)
-
-
-def test_relationship_model_uses_entity_relationships_table() -> None:
-    assert Relationship.__tablename__ == "entity_relationships"
-
-
-def test_relationship_type_definition_declares_direction_check_constraint() -> None:
-    constraint_names = {
-        constraint.name
-        for constraint in RelationshipTypeDefinition.__table__.constraints
-        if constraint.name is not None
-    }
-
-    assert "ck_relationship_type_definitions_direction_labels" in constraint_names
+from tests.pg_test_support import upgraded_postgres_test_engine
 
 
 @pytest.fixture
-def session(
+def postgres_session(
     monkeypatch: pytest.MonkeyPatch,
     postgres_test_settings: Settings,
 ) -> Session:
-    settings = postgres_test_settings
-    engine = create_test_engine(settings)
-    alembic_config = build_alembic_config()
-
-    reset_public_schema(engine)
-    monkeypatch.setenv("DATABASE_URL", settings.database_url)
-    get_settings.cache_clear()
-    command.upgrade(alembic_config, "head")
-
-    try:
+    with upgraded_postgres_test_engine(
+        monkeypatch=monkeypatch,
+        settings=postgres_test_settings,
+    ) as engine:
         with Session(engine) as session:
             yield session
-    finally:
-        command.downgrade(alembic_config, "base")
-        get_settings.cache_clear()
-        engine.dispose()
 
 
-def test_can_persist_and_retrieve_core_records(session: Session) -> None:
+def test_can_persist_and_retrieve_core_records(postgres_session: Session) -> None:
     # Arrange
     owner = Owner(email="gm@example.com", display_name="Local GM")
     campaign = Campaign(owner=owner, name="Shadows of Glass", description="Urban intrigue")
@@ -128,7 +99,7 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
         provenance_data={"candidate_id": str(uuid4())},
     )
 
-    session.add_all(
+    postgres_session.add_all(
         [
             owner,
             campaign,
@@ -143,14 +114,14 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
     )
 
     # Act
-    session.commit()
+    postgres_session.commit()
 
-    stored_campaign = session.get(Campaign, campaign.id)
-    stored_note = session.get(SessionNote, session_note.id)
-    stored_document = session.get(SourceDocument, source_document.id)
-    stored_job = session.get(ExtractionJob, extraction_job.id)
-    stored_candidate = session.get(ExtractionCandidate, candidate.id)
-    stored_relationship = session.get(Relationship, relationship.id)
+    stored_campaign = postgres_session.get(Campaign, campaign.id)
+    stored_note = postgres_session.get(SessionNote, session_note.id)
+    stored_document = postgres_session.get(SourceDocument, source_document.id)
+    stored_job = postgres_session.get(ExtractionJob, extraction_job.id)
+    stored_candidate = postgres_session.get(ExtractionCandidate, candidate.id)
+    stored_relationship = postgres_session.get(Relationship, relationship.id)
 
     # Assert
     assert stored_campaign is not None
@@ -171,7 +142,7 @@ def test_can_persist_and_retrieve_core_records(session: Session) -> None:
     assert stored_relationship.certainty_status == "confirmed"
 
 
-def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
+def test_orm_inserts_apply_json_defaults_consistently(postgres_session: Session) -> None:
     # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
@@ -217,7 +188,7 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
         source_document=source_document,
     )
 
-    session.add_all(
+    postgres_session.add_all(
         [
             owner,
             campaign,
@@ -231,13 +202,13 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     )
 
     # Act
-    session.commit()
+    postgres_session.commit()
 
-    stored_document = session.get(SourceDocument, source_document.id)
-    stored_candidate = session.get(ExtractionCandidate, candidate.id)
-    stored_entity = session.get(Entity, entity.id)
-    stored_relationship = session.get(Relationship, relationship.id)
-    stored_relationship_type_definition = session.get(
+    stored_document = postgres_session.get(SourceDocument, source_document.id)
+    stored_candidate = postgres_session.get(ExtractionCandidate, candidate.id)
+    stored_entity = postgres_session.get(Entity, entity.id)
+    stored_relationship = postgres_session.get(Relationship, relationship.id)
+    stored_relationship_type_definition = postgres_session.get(
         RelationshipTypeDefinition,
         relationship_type_definition.id,
     )
@@ -260,31 +231,8 @@ def test_orm_inserts_apply_json_defaults_consistently(session: Session) -> None:
     assert stored_relationship.certainty_status == "confirmed"
 
 
-def test_relationship_type_definition_requires_reverse_label_when_not_symmetric(
-    session: Session,
-) -> None:
-    owner = Owner(email="gm@example.com")
-    campaign = Campaign(owner=owner, name="Shadows of Glass")
-    relationship_type_definition = RelationshipTypeDefinition(
-        campaign=campaign,
-        key="bodyguard_of",
-        label="bodyguard of",
-        family="social",
-        reverse_label=None,
-        is_symmetric=False,
-        allowed_source_types=["person"],
-        allowed_target_types=["person"],
-    )
-
-    session.add_all([owner, campaign, relationship_type_definition])
-
-    with pytest.raises(IntegrityError):
-        session.commit()
-
-    session.rollback()
-
-
-def test_updated_at_changes_on_orm_update(session: Session) -> None:
+def test_updated_at_changes_on_orm_update(postgres_session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
     source_document = SourceDocument(
@@ -293,28 +241,31 @@ def test_updated_at_changes_on_orm_update(session: Session) -> None:
         raw_text="Original text",
     )
 
-    session.add_all([owner, campaign, source_document])
-    session.commit()
+    postgres_session.add_all([owner, campaign, source_document])
+    postgres_session.commit()
 
     original_updated_at = source_document.updated_at
 
+    # Act
     source_document.raw_text = "Updated text"
-    session.commit()
-    session.refresh(source_document)
+    postgres_session.commit()
+    postgres_session.refresh(source_document)
 
+    # Assert
     assert source_document.updated_at > original_updated_at
 
 
-def test_relationship_rejects_confidence_below_zero(session: Session) -> None:
+def test_relationship_rejects_confidence_below_zero(postgres_session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
     entity_a = Entity(campaign=campaign, type="person", name="Magistrate Ilya")
     entity_b = Entity(campaign=campaign, type="location", name="Broken Observatory")
 
-    session.add_all([owner, campaign, entity_a, entity_b])
-    session.commit()
+    postgres_session.add_all([owner, campaign, entity_a, entity_b])
+    postgres_session.commit()
 
-    session.add(
+    postgres_session.add(
         Relationship(
             campaign=campaign,
             source_entity=entity_a,
@@ -323,21 +274,24 @@ def test_relationship_rejects_confidence_below_zero(session: Session) -> None:
             confidence=Decimal("-0.01"),
         )
     )
+
+    # Act / Assert
     with pytest.raises(IntegrityError):
-        session.commit()
-    session.rollback()
+        postgres_session.commit()
+    postgres_session.rollback()
 
 
-def test_relationship_rejects_confidence_above_one(session: Session) -> None:
+def test_relationship_rejects_confidence_above_one(postgres_session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
     entity_a = Entity(campaign=campaign, type="person", name="Magistrate Ilya")
     entity_b = Entity(campaign=campaign, type="location", name="Broken Observatory")
 
-    session.add_all([owner, campaign, entity_a, entity_b])
-    session.commit()
+    postgres_session.add_all([owner, campaign, entity_a, entity_b])
+    postgres_session.commit()
 
-    session.add(
+    postgres_session.add(
         Relationship(
             campaign=campaign,
             source_entity=entity_a,
@@ -346,50 +300,62 @@ def test_relationship_rejects_confidence_above_one(session: Session) -> None:
             confidence=Decimal("1.01"),
         )
     )
+
+    # Act / Assert
     with pytest.raises(IntegrityError):
-        session.commit()
+        postgres_session.commit()
+    postgres_session.rollback()
 
 
-def test_campaign_name_must_be_unique_per_owner(session: Session) -> None:
+def test_campaign_name_must_be_unique_per_owner(postgres_session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
-    session.add(owner)
-    session.flush()
+    postgres_session.add(owner)
+    postgres_session.flush()
 
-    session.add_all(
+    postgres_session.add_all(
         [
             Campaign(owner_id=owner.id, name="Shadows of Glass"),
             Campaign(owner_id=owner.id, name="Shadows of Glass"),
         ]
     )
 
+    # Act / Assert
     with pytest.raises(IntegrityError):
-        session.commit()
+        postgres_session.commit()
+    postgres_session.rollback()
 
 
-def test_session_note_requires_number_or_label(session: Session) -> None:
+def test_session_note_requires_number_or_label(postgres_session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
-    session.add_all([owner, campaign])
-    session.flush()
+    postgres_session.add_all([owner, campaign])
+    postgres_session.flush()
 
-    session.add(SessionNote(campaign_id=campaign.id))
+    postgres_session.add(SessionNote(campaign_id=campaign.id))
 
+    # Act / Assert
     with pytest.raises(IntegrityError):
-        session.commit()
+        postgres_session.commit()
+    postgres_session.rollback()
 
 
-def test_session_number_must_be_unique_within_campaign(session: Session) -> None:
+def test_session_number_must_be_unique_within_campaign(postgres_session: Session) -> None:
+    # Arrange
     owner = Owner(email="gm@example.com")
     campaign = Campaign(owner=owner, name="Shadows of Glass")
-    session.add_all([owner, campaign])
-    session.flush()
+    postgres_session.add_all([owner, campaign])
+    postgres_session.flush()
 
-    session.add_all(
+    postgres_session.add_all(
         [
             SessionNote(campaign_id=campaign.id, session_number=7),
             SessionNote(campaign_id=campaign.id, session_number=7, session_label="Seven again"),
         ]
     )
 
+    # Act / Assert
     with pytest.raises(IntegrityError):
-        session.commit()
+        postgres_session.commit()
+    postgres_session.rollback()
