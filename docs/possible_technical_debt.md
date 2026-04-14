@@ -109,3 +109,76 @@ Why it was deferred now:
 - The current confirmation screen is a valid product choice and is not a correctness bug.
 - Immediate redirect introduced router/test-environment issues in the current setup, so forcing it now would add complexity for limited product gain.
 - The confirmation state is explicit and reliable while the app is still stabilizing its CRUD flows.
+
+
+## Remove test sync_api_test_runtime_shim and replace with "Pure Async"
+
+Instead of using asyncio.run() inside your api_request fixture and shimming the threads, make your entire test suite async.
+ - Use pytest-asyncio.
+ - Define your tests as async def test_....
+ - Use an AsyncClient directly. This usually resolves the deadlocks because you aren't constantly jumping between sync and async contexts.
+
+The change I’m proposing focuses on how the test runner talks to the app, not how the app is written.
+
+Here is the breakdown of the "Giacomelli" approach to fixing this without the "magic" shim.
+
+### 1. The Problem with the Current api_request
+Currently, your fixture does this:
+asyncio.run(send_request())
+
+Every time you call api_request, you are starting a brand new event loop, running one request, and shutting it down. This is what's causing the deadlock. FastAPI is trying to manage a threadpool on an event loop that is constantly being killed and restarted by your test.
+
+### 2. The Clean Solution: Async Tests, Sync App
+You can make your tests async while leaving your FastAPI routes exactly as they are (def instead of async def).
+
+FastAPI is designed to handle this. It will see your def route and automatically run it in a threadpool. By making the test suite async, we provide a stable, long-running event loop for that threadpool to talk to.
+
+The "Giacomelli" Refactor
+#### Step 1: Update the Fixture
+Get rid of asyncio.run and the shim. Use a native async client.
+
+```python
+# conftest.py
+@pytest.fixture
+async def client(test_app):
+    # This stays on ONE event loop for the duration of the test
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=test_app), 
+        base_url="http://testserver"
+    ) as ac:
+        yield ac
+```
+
+#### Step 2: Update the Test
+The test becomes async, but the app stays exactly the same.
+
+```python
+# test_campaigns.py
+@pytest.mark.anyio  # Or pytest.mark.asyncio
+async def test_create_campaign(client, test_owner):
+    # The 'await' here only waits for the HTTP cycle.
+    # Inside the app, your 'def' routes still run in threads!
+    response = await client.post(
+        "/api/campaigns",
+        json={"owner_id": str(test_owner.id), "name": "Iron Vale"}
+    )
+    assert response.status_code == 201
+```
+
+### 3. Why this is better for Readability
+No Voodoo: You can delete the 30 lines of monkeypatch "shim" code.
+
+Realistic Simulation: You are now testing the app exactly as it behaves in production—using httpx to talk to an ASGI app.
+
+Standard Tooling: Any new developer joining the team will understand pytest-asyncio and httpx. No one understands a custom shim that patches the internals of starlette.concurrency.
+
+### The "Jan" Summary
+By switching to an async test runner:
+
+Production Code: Stays def (Sync). No changes.
+
+App Logic: Stays blocking/standard. No changes.
+
+Tests: Become async def. This is a standard practice in the FastAPI ecosystem.
+
+You are effectively replacing a fragile, custom hack (the shim) with a standard, robust pattern (async test runner). That is how you pay down technical debt while keeping your architecture "Clean."
