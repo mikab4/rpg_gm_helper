@@ -14,8 +14,8 @@ if TYPE_CHECKING:
     from app.models.owner import Owner
     from app.models.relationship import Relationship
     from app.models.relationship_type_definition import RelationshipTypeDefinition
-    from app.models.session_note import SessionNote
-    from app.models.source_document import SourceDocument
+    from app.models.session import Session
+    from app.models.source_asset import SourceAsset
 
 
 class Campaign(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -31,12 +31,12 @@ class Campaign(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     owner: Mapped["Owner"] = relationship(back_populates="campaigns", lazy="select")
-    session_notes: Mapped[list["SessionNote"]] = relationship(
+    sessions: Mapped[list["Session"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
         passive_deletes="all",
     )
-    source_documents: Mapped[list["SourceDocument"]] = relationship(
+    source_assets: Mapped[list["SourceAsset"]] = relationship(
         back_populates="campaign",
         lazy="selectin",
         passive_deletes="all",

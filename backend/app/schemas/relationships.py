@@ -33,7 +33,7 @@ class RelationshipCreate(BaseModel):
     certainty_status: RelationshipCertaintyStatus
     notes: OptionalNonBlankString = None
     confidence: float | None = None
-    source_document_id: UUID | None = None
+    source_asset_id: UUID | None = None
     provenance_excerpt: OptionalNonBlankString = None
     provenance_data: dict[str, object] = Field(default_factory=dict)
 
@@ -94,7 +94,7 @@ class RelationshipUpdate(BaseModel):
     certainty_status: RelationshipCertaintyStatus | None = None
     notes: OptionalNonBlankString = None
     confidence: float | None = None
-    source_document_id: UUID | None = None
+    source_asset_id: UUID | None = None
     provenance_excerpt: OptionalNonBlankString = None
     provenance_data: dict[str, object] | None = None
 
@@ -178,7 +178,7 @@ class RelationshipResponse(BaseModel):
     certainty_status: RelationshipCertaintyStatus
     notes: str | None
     confidence: float | None
-    source_document_id: UUID | None
+    source_asset_id: UUID | None
     provenance_excerpt: str | None
     provenance_data: dict[str, object]
     created_at: datetime

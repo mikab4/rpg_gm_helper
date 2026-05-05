@@ -21,7 +21,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_docu
 if TYPE_CHECKING:
     from app.models.campaign import Campaign
     from app.models.entity import Entity
-    from app.models.source_document import SourceDocument
+    from app.models.source_asset import SourceAsset
 
 
 class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -44,10 +44,10 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="fk_entity_relationships_target_entity_campaign",
         ),
         ForeignKeyConstraint(
-            ["source_document_id", "campaign_id"],
-            ["source_documents.id", "source_documents.campaign_id"],
+            ["source_asset_id", "campaign_id"],
+            ["source_assets.id", "source_assets.campaign_id"],
             ondelete="RESTRICT",
-            name="fk_entity_relationships_source_document_campaign",
+            name="fk_entity_relationships_source_asset_campaign",
         ),
         Index("ix_entity_relationships_campaign_id", "campaign_id"),
         Index(
@@ -61,8 +61,8 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "campaign_id",
         ),
         Index(
-            "ix_entity_relationships_source_document_id_campaign_id",
-            "source_document_id",
+            "ix_entity_relationships_source_asset_id_campaign_id",
+            "source_asset_id",
             "campaign_id",
         ),
     )
@@ -101,7 +101,7 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
-    source_document_id: Mapped[UUID | None] = mapped_column(
+    source_asset_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
         nullable=True,
     )
@@ -123,7 +123,7 @@ class Relationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         foreign_keys=[target_entity_id],
         lazy="select",
     )
-    source_document: Mapped["SourceDocument | None"] = relationship(
+    source_asset: Mapped["SourceAsset | None"] = relationship(
         back_populates="relationships",
         lazy="select",
         overlaps="campaign,relationships",

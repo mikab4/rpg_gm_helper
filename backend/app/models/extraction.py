@@ -20,7 +20,7 @@ from app.models.base import Base, UUIDPrimaryKeyMixin, json_document, utcnow
 
 if TYPE_CHECKING:
     from app.models.campaign import Campaign
-    from app.models.source_document import SourceDocument
+    from app.models.source_asset import SourceAsset
 
 
 class ExtractionJob(UUIDPrimaryKeyMixin, Base):
@@ -28,15 +28,15 @@ class ExtractionJob(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (
         UniqueConstraint("id", "campaign_id", name="uq_extraction_job_id_campaign"),
         ForeignKeyConstraint(
-            ["source_document_id", "campaign_id"],
-            ["source_documents.id", "source_documents.campaign_id"],
+            ["source_asset_id", "campaign_id"],
+            ["source_assets.id", "source_assets.campaign_id"],
             ondelete="CASCADE",
-            name="fk_extraction_jobs_source_document_campaign",
+            name="fk_extraction_jobs_source_asset_campaign",
         ),
         Index("ix_extraction_jobs_campaign_id", "campaign_id"),
         Index(
-            "ix_extraction_jobs_source_document_id_campaign_id",
-            "source_document_id",
+            "ix_extraction_jobs_source_asset_id_campaign_id",
+            "source_asset_id",
             "campaign_id",
         ),
     )
@@ -46,7 +46,7 @@ class ExtractionJob(UUIDPrimaryKeyMixin, Base):
         ForeignKey("campaigns.id", ondelete="CASCADE"),
         nullable=False,
     )
-    source_document_id: Mapped[UUID] = mapped_column(
+    source_asset_id: Mapped[UUID] = mapped_column(
         Uuid(),
         nullable=False,
     )
@@ -62,7 +62,7 @@ class ExtractionJob(UUIDPrimaryKeyMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     campaign: Mapped["Campaign"] = relationship(back_populates="extraction_jobs", lazy="select")
-    source_document: Mapped["SourceDocument"] = relationship(
+    source_asset: Mapped["SourceAsset"] = relationship(
         back_populates="extraction_jobs",
         lazy="select",
         overlaps="campaign,extraction_jobs",

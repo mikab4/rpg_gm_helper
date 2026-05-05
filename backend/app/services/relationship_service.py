@@ -6,7 +6,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.enums import EntityType, RelationshipFamily, normalize_str_enum_value
-from app.models import Entity, Relationship, SourceDocument
+from app.models import Entity, Relationship, SourceAsset
 from app.schemas import RelationshipCreate, RelationshipUpdate
 from app.services.campaign_lookup import ensure_campaign_exists
 from app.services.errors import ConflictError, NotFoundError
@@ -27,10 +27,10 @@ def create_relationship(
         source_entity_id=relationship_create.source_entity_id,
         target_entity_id=relationship_create.target_entity_id,
     )
-    _validate_source_document(
+    _validate_source_asset(
         db_session,
         campaign_id=campaign_id,
-        source_document_id=relationship_create.source_document_id,
+        source_asset_id=relationship_create.source_asset_id,
     )
     prepared_relationship_type = _validate_and_resolve_relationship_type(
         db_session,
@@ -50,7 +50,7 @@ def create_relationship(
         certainty_status=relationship_create.certainty_status,
         notes=relationship_create.notes,
         confidence=relationship_create.confidence,
-        source_document_id=relationship_create.source_document_id,
+        source_asset_id=relationship_create.source_asset_id,
         provenance_excerpt=relationship_create.provenance_excerpt,
         provenance_data=relationship_create.provenance_data,
     )
@@ -108,11 +108,11 @@ def update_relationship(
         relationship_id=relationship_id,
     )
     update_fields = relationship_update.model_dump(exclude_unset=True)
-    if "source_document_id" in update_fields:
-        _validate_source_document(
+    if "source_asset_id" in update_fields:
+        _validate_source_asset(
             db_session,
             campaign_id=campaign_id,
-            source_document_id=update_fields["source_document_id"],
+            source_asset_id=update_fields["source_asset_id"],
         )
     if "relationship_type" in update_fields:
         source_entity, target_entity = _get_relationship_endpoints(
@@ -228,22 +228,22 @@ def _get_relationship_endpoints(
     return source_entity, target_entity
 
 
-def _validate_source_document(
+def _validate_source_asset(
     db_session: Session,
     *,
     campaign_id: UUID,
-    source_document_id: UUID | None,
+    source_asset_id: UUID | None,
 ) -> None:
-    if source_document_id is None:
+    if source_asset_id is None:
         return
-    stored_document = db_session.scalar(
-        select(SourceDocument.id).where(
-            SourceDocument.id == source_document_id,
-            SourceDocument.campaign_id == campaign_id,
+    stored_asset = db_session.scalar(
+        select(SourceAsset.id).where(
+            SourceAsset.id == source_asset_id,
+            SourceAsset.campaign_id == campaign_id,
         )
     )
-    if stored_document is None:
-        raise NotFoundError("Source document not found.")
+    if stored_asset is None:
+        raise NotFoundError("Source asset not found.")
 
 
 def _validate_and_resolve_relationship_type(

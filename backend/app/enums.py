@@ -29,11 +29,7 @@ class RelationshipFamily(StrEnum):
 
 
 def format_relationship_family_label(relationship_family: "RelationshipFamily | str") -> str:
-    raw_value = (
-        relationship_family.value
-        if isinstance(relationship_family, RelationshipFamily)
-        else relationship_family
-    )
+    raw_value = relationship_family.value if isinstance(relationship_family, RelationshipFamily) else relationship_family
     return " ".join(word.capitalize() for word in raw_value.split("_"))
 
 
@@ -52,10 +48,23 @@ class RelationshipCertaintyStatus(StrEnum):
     RUMORED = "rumored"
 
 
-class SourceDocumentTruthStatus(StrEnum):
+class SourceAssetTruthStatus(StrEnum):
     CANONICAL = "canonical"
     UNCERTAIN = "uncertain"
     SUBJECTIVE = "subjective"
+
+
+class ParseStatus(StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class AssetParserKind(StrEnum):
+    TEXT = "text"
+    SPREADSHEET = "spreadsheet"
+    IMAGE = "image"
 
 
 class ExtractionJobStatus(StrEnum):

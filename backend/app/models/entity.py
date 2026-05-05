@@ -19,7 +19,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, json_docu
 if TYPE_CHECKING:
     from app.models.campaign import Campaign
     from app.models.relationship import Relationship
-    from app.models.source_document import SourceDocument
+    from app.models.source_asset import SourceAsset
 
 
 class Entity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -27,13 +27,13 @@ class Entity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("id", "campaign_id", name="uq_entity_id_campaign"),
         ForeignKeyConstraint(
-            ["source_document_id", "campaign_id"],
-            ["source_documents.id", "source_documents.campaign_id"],
+            ["source_asset_id", "campaign_id"],
+            ["source_assets.id", "source_assets.campaign_id"],
             ondelete="RESTRICT",
-            name="fk_entities_source_document_campaign",
+            name="fk_entities_source_asset_campaign",
         ),
         Index("ix_entities_campaign_id", "campaign_id"),
-        Index("ix_entities_source_document_id_campaign_id", "source_document_id", "campaign_id"),
+        Index("ix_entities_source_asset_id_campaign_id", "source_asset_id", "campaign_id"),
     )
 
     campaign_id: Mapped[UUID] = mapped_column(
@@ -50,7 +50,7 @@ class Entity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=dict,
         server_default=text("'{}'::jsonb"),
     )
-    source_document_id: Mapped[UUID | None] = mapped_column(
+    source_asset_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
         nullable=True,
     )
@@ -62,7 +62,7 @@ class Entity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     campaign: Mapped["Campaign"] = relationship(back_populates="entities", lazy="select")
-    source_document: Mapped["SourceDocument | None"] = relationship(
+    source_asset: Mapped["SourceAsset | None"] = relationship(
         back_populates="entities",
         lazy="select",
         overlaps="campaign,entities",

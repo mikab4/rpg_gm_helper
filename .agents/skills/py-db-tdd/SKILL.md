@@ -1,6 +1,6 @@
 ---
 name: py-db-tdd
-description: Use when writing, refactoring, or reviewing Python backend tests in this repository, especially pytest fixture design, SQLAlchemy setup, API tests, and database-backed scenarios.
+description: Use when working on Python backend tests in this repository, especially pytest fixtures, API tests, or database-backed scenarios.
 ---
 
 # Py DB TDD

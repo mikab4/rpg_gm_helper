@@ -47,7 +47,7 @@ class EntityFactory(SQLAlchemyModelFactory):
     type = "person"
     name = factory.Sequence(lambda n: f"Entity {n}")
     summary = None
-    source_document_id = None
+    source_asset_id = None
     provenance_excerpt = None
     metadata_ = factory.LazyFunction(dict)
     provenance_data = factory.LazyFunction(dict)
@@ -63,6 +63,6 @@ class RelationshipFactory(SQLAlchemyModelFactory):
     relationship_type = "knows"
     notes = None
     confidence = None
-    source_document_id = None
+    source_asset_id = None
     provenance_excerpt = None
     provenance_data = factory.LazyFunction(dict)

@@ -11,19 +11,19 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.campaign import Campaign
-    from app.models.source_document import SourceDocument
+    from app.models.source_asset import SourceAsset
 
 
-class SessionNote(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "session_notes"
+class Session(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "sessions"
     __table_args__ = (
-        UniqueConstraint("campaign_id", "session_number", name="uq_session_note_campaign_number"),
-        UniqueConstraint("id", "campaign_id", name="uq_session_note_id_campaign"),
+        UniqueConstraint("campaign_id", "session_number", name="uq_sessions_campaign_number"),
+        UniqueConstraint("id", "campaign_id", name="uq_sessions_id_campaign"),
         CheckConstraint(
             "session_number IS NOT NULL OR session_label IS NOT NULL",
-            name="ck_session_notes_number_or_label",
+            name="ck_sessions_number_or_label",
         ),
-        Index("ix_session_notes_campaign_id", "campaign_id"),
+        Index("ix_sessions_campaign_id", "campaign_id"),
     )
 
     campaign_id: Mapped[UUID] = mapped_column(
@@ -36,9 +36,9 @@ class SessionNote(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     played_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    campaign: Mapped["Campaign"] = relationship(back_populates="session_notes", lazy="select")
-    source_documents: Mapped[list["SourceDocument"]] = relationship(
-        back_populates="session_note",
+    campaign: Mapped["Campaign"] = relationship(back_populates="sessions", lazy="select")
+    source_assets: Mapped[list["SourceAsset"]] = relationship(
+        back_populates="session",
         lazy="selectin",
-        overlaps="campaign,source_documents",
+        overlaps="campaign,source_assets",
     )

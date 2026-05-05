@@ -68,7 +68,7 @@ def _build_relationship_response_payload_from_descriptor(
         "certainty_status": relationship.certainty_status,
         "notes": relationship.notes,
         "confidence": (float(relationship.confidence) if relationship.confidence is not None else None),
-        "source_document_id": relationship.source_document_id,
+        "source_asset_id": relationship.source_asset_id,
         "provenance_excerpt": relationship.provenance_excerpt,
         "provenance_data": relationship.provenance_data,
         "created_at": relationship.created_at,

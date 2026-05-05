@@ -60,12 +60,7 @@ class EntityUpdate(BaseModel):
         if null_metadata_update:
             raise ValueError("Entity metadata cannot be null.")
 
-        if (
-            no_entity_type_update
-            and no_entity_name_update
-            and no_summary_update
-            and no_metadata_update
-        ):
+        if no_entity_type_update and no_entity_name_update and no_summary_update and no_metadata_update:
             raise ValueError("At least one entity field must be provided.")
 
         return self
@@ -83,7 +78,7 @@ class EntityResponse(BaseModel):
         validation_alias="metadata_",
         serialization_alias="metadata",
     )
-    source_document_id: UUID | None
+    source_asset_id: UUID | None
     provenance_excerpt: str | None
     provenance_data: dict[str, object]
     created_at: datetime
